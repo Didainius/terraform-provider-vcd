@@ -144,18 +144,18 @@ func resourceVcdOrgVdc() *schema.Resource {
 				Description: "Storage profiles supported by this VDC.",
 			},
 			"memory_guaranteed": &schema.Schema{
-				Type:             schema.TypeString,
-				Computed:         true,
-				Optional:         true,
-				Description:      "Percentage of allocated memory resources guaranteed to vApps deployed in this VDC. For example, if this value is 0.75, then 75% of allocated resources are guaranteed. Required when AllocationModel is AllocationVApp or AllocationPool. When Allocation model is AllocationPool minimum value is 0.2. If the element is empty, vCD sets a value.",
-				DiffSuppressFunc: floatAsStringSuppress(),
+				Type:        schema.TypeFloat,
+				Computed:    true,
+				Optional:    true,
+				Description: "Percentage of allocated memory resources guaranteed to vApps deployed in this VDC. For example, if this value is 0.75, then 75% of allocated resources are guaranteed. Required when AllocationModel is AllocationVApp or AllocationPool. When Allocation model is AllocationPool minimum value is 0.2. If the element is empty, vCD sets a value.",
+				// DiffSuppressFunc: floatAsStringSuppress(),
 			},
 			"cpu_guaranteed": &schema.Schema{
-				Type:             schema.TypeString,
-				Optional:         true,
-				Computed:         true,
-				Description:      "Percentage of allocated CPU resources guaranteed to vApps deployed in this VDC. For example, if this value is 0.75, then 75% of allocated resources are guaranteed. Required when AllocationModel is AllocationVApp or AllocationPool. If the element is empty, vCD sets a value",
-				DiffSuppressFunc: floatAsStringSuppress(),
+				Type:        schema.TypeFloat,
+				Optional:    true,
+				Computed:    true,
+				Description: "Percentage of allocated CPU resources guaranteed to vApps deployed in this VDC. For example, if this value is 0.75, then 75% of allocated resources are guaranteed. Required when AllocationModel is AllocationVApp or AllocationPool. If the element is empty, vCD sets a value",
+				// DiffSuppressFunc: floatAsStringSuppress(),
 			},
 			"cpu_speed": &schema.Schema{
 				Type:        schema.TypeInt,
@@ -304,14 +304,14 @@ func resourceVcdVdcRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	d.Set("allocation_model", adminVdc.AdminVdc.AllocationModel)
-	d.Set("cpu_guaranteed", strconv.FormatFloat(*adminVdc.AdminVdc.ResourceGuaranteedCpu, 'f', 2, 64))
+	d.Set("cpu_guaranteed", *adminVdc.AdminVdc.ResourceGuaranteedCpu)
 	d.Set("cpu_speed", adminVdc.AdminVdc.VCpuInMhz)
 	d.Set("description", adminVdc.AdminVdc.Description)
 	d.Set("enable_fast_provisioning", adminVdc.AdminVdc.UsesFastProvisioning)
 	d.Set("enable_thin_provisioning", adminVdc.AdminVdc.IsThinProvision)
 	d.Set("enable_vm_discovery", adminVdc.AdminVdc.VmDiscoveryEnabled)
 	d.Set("enabled", adminVdc.AdminVdc.IsEnabled)
-	d.Set("memory_guaranteed", strconv.FormatFloat(*adminVdc.AdminVdc.ResourceGuaranteedMemory, 'f', 2, 64))
+	d.Set("memory_guaranteed", *adminVdc.AdminVdc.ResourceGuaranteedMemory)
 	d.Set("name", adminVdc.AdminVdc.Name)
 
 	networkPool, err := govcd.GetNetworkPoolByHREF(vcdClient.VCDClient, adminVdc.AdminVdc.NetworkPoolReference.HREF)
@@ -472,19 +472,22 @@ func getUpdatedVdcInput(d *schema.ResourceData, vcdClient *VCDClient, vdc *govcd
 	}
 
 	if d.HasChange("memory_guaranteed") {
-		value, err := strconv.ParseFloat(d.Get("memory_guaranteed").(string), 64)
-		if err != nil {
-			return &govcd.AdminVdc{}, err
-		}
-		vdc.AdminVdc.ResourceGuaranteedMemory = &value
+		// value, err := strconv.ParseFloat(d.Get("memory_guaranteed").(float64), 64)
+		// if err != nil {
+		// 	return &govcd.AdminVdc{}, err
+		// }
+		// d.Get("memory_guaranteed").(float64)
+		memoryGuaranteedFloat := d.Get("memory_guaranteed").(float64)
+		vdc.AdminVdc.ResourceGuaranteedMemory = &memoryGuaranteedFloat
 	}
 
 	if d.HasChange("cpu_guaranteed") {
-		value, err := strconv.ParseFloat(d.Get("cpu_guaranteed").(string), 64)
-		if err != nil {
-			return &govcd.AdminVdc{}, err
-		}
-		vdc.AdminVdc.ResourceGuaranteedCpu = &value
+		// value, err := strconv.ParseFloat(d.Get("cpu_guaranteed").(string), 64)
+		// if err != nil {
+		// 	return &govcd.AdminVdc{}, err
+		// }
+		cpuGuaranteedFloat := d.Get("cpu_guaranteed").(float64)
+		vdc.AdminVdc.ResourceGuaranteedCpu = &cpuGuaranteedFloat
 	}
 
 	if d.HasChange("cpu_speed") {
@@ -618,19 +621,21 @@ func getVcdVdcInput(d *schema.ResourceData, vcdClient *VCDClient) (*types.VdcCon
 	}
 
 	if resourceGuaranteedMemory, ok := d.GetOk("memory_guaranteed"); ok {
-		value, err := strconv.ParseFloat(resourceGuaranteedMemory.(string), 64)
-		if err != nil {
-			return &types.VdcConfiguration{}, err
-		}
-		params.ResourceGuaranteedMemory = &value
+		// value, err := strconv.ParseFloat(resourceGuaranteedMemory.(string), 64)
+		// if err != nil {
+		// 	return &types.VdcConfiguration{}, err
+		// }
+		resourceGuaranteedMemoryFloat := resourceGuaranteedMemory.(float64)
+		params.ResourceGuaranteedMemory = &resourceGuaranteedMemoryFloat
 	}
 
 	if resourceGuaranteedCpu, ok := d.GetOk("cpu_guaranteed"); ok {
-		value, err := strconv.ParseFloat(resourceGuaranteedCpu.(string), 64)
-		if err != nil {
-			return &types.VdcConfiguration{}, err
-		}
-		params.ResourceGuaranteedCpu = &value
+		// value, err := strconv.ParseFloat(resourceGuaranteedCpu.(string), 64)
+		// if err != nil {
+		// 	return &types.VdcConfiguration{}, err
+		// }
+		resourceGuaranteedCpuFloat := resourceGuaranteedCpu.(float64)
+		params.ResourceGuaranteedCpu = &resourceGuaranteedCpuFloat
 	}
 
 	if vCpuInMhz, ok := d.GetOk("cpu_speed"); ok {

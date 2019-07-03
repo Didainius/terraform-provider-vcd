@@ -29,8 +29,8 @@ func TestAccVcdOrgVdcReservationPool(t *testing.T) {
 		"Tags":                      "vdc",
 		"FuncName":                  "TestAccVcdOrgVdcReservationPool",
 		// cause vDC ignores values
-		"MemoryGuaranteed": "1.00",
-		"CpuGuaranteed":    "1.00",
+		"MemoryGuaranteed": "1",
+		"CpuGuaranteed":    "1",
 	}
 	runOrgVdcTest(t, params, allocationModel)
 }
@@ -49,7 +49,7 @@ func TestAccVcdOrgVdcAllocationPool(t *testing.T) {
 		"ProviderVdcStorageProfile": testConfig.VCD.ProviderVdc.StorageProfile,
 		"Tags":                      "vdc",
 		"FuncName":                  "TestAccVcdOrgVdcAllocationPool",
-		"MemoryGuaranteed":          "0.30",
+		"MemoryGuaranteed":          "0.3",
 		"CpuGuaranteed":             "0.45",
 	}
 	runOrgVdcTest(t, params, allocationModel)
@@ -70,7 +70,7 @@ func TestAccVcdOrgVdcAllocationVApp(t *testing.T) {
 		"ProviderVdcStorageProfile": testConfig.VCD.ProviderVdc.StorageProfile,
 		"Tags":                      "vdc",
 		"FuncName":                  "TestAccVcdOrgVdcAllocationVapp",
-		"MemoryGuaranteed":          "0.50",
+		"MemoryGuaranteed":          "0.5",
 		"CpuGuaranteed":             "0.65",
 	}
 	runOrgVdcTest(t, params, allocationModel)
@@ -332,8 +332,8 @@ resource "vcd_org_vdc" "{{.VdcName}}" {
     default  = true
   }
 
-  cpu_guaranteed           = "{{.CpuGuaranteed}}"
-  memory_guaranteed        = "{{.MemoryGuaranteed}}"
+  cpu_guaranteed           = {{.CpuGuaranteed}}
+  memory_guaranteed        = {{.MemoryGuaranteed}}
   enabled                  = false
   enable_thin_provisioning = false
   enable_fast_provisioning = false
