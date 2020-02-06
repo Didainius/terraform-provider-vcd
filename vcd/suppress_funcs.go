@@ -18,7 +18,15 @@ func suppressWordToEmptyString(word string) schema.SchemaDiffSuppressFunc {
 		}
 		return false
 	}
+}
 
+func suppressExistingToNull() schema.SchemaDiffSuppressFunc {
+	return func(k string, old string, new string, d *schema.ResourceData) bool {
+		if old != "" && new == "0" {
+			return true
+		}
+		return false
+	}
 }
 
 // suppressNetworkUpgradedInterface is used to silence the changes in

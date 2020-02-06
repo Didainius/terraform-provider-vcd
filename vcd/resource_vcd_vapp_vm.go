@@ -3,12 +3,13 @@ package vcd
 import (
 	"bytes"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"log"
 	"net"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -79,10 +80,11 @@ func resourceVcdVAppVm() *schema.Resource {
 				// Currently, this field has the description of the OVA used to create the VM
 			},
 			"memory": &schema.Schema{
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Description:  "The amount of RAM (in MB) to allocate to the VM",
-				ValidateFunc: validateMultipleOf4(),
+				Type:             schema.TypeInt,
+				Optional:         true,
+				Description:      "The amount of RAM (in MB) to allocate to the VM",
+				ValidateFunc:     validateMultipleOf4(),
+				DiffSuppressFunc: suppressExistingToNull(),
 			},
 			"cpus": &schema.Schema{
 				Type:        schema.TypeInt,
