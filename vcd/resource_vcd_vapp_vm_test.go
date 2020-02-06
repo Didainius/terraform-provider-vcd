@@ -9,6 +9,10 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
+func init() {
+	testingTags["vm"] = "resource_vcd_vapp_vm_test.go"
+}
+
 var vappName2 string = "TestAccVcdVAppVmVapp"
 var vmName string = "TestAccVcdVAppVmVm"
 
@@ -152,10 +156,6 @@ func TestAccVcdVAppVm_Clone(t *testing.T) {
 	})
 }
 
-func init() {
-	testingTags["vm"] = "resource_vcd_vapp_vm_test.go"
-}
-
 const testAccCheckVcdVAppVm_basic = `
 resource "vcd_network_routed" "{{.NetworkName}}" {
   name         = "{{.NetworkName}}"
@@ -294,5 +294,62 @@ resource "vcd_vapp_vm" "{{.VmName2}}" {
     type               = vcd_vapp_vm.{{.VmName}}.network.0.type
     ip_allocation_mode = vcd_vapp_vm.{{.VmName}}.network.0.ip_allocation_mode
   }
+}
+`
+
+// TestAccVcdVAppVm_Minimal was introduced to cover a regression between versions 2.5 and 2.6. When user omits cpu and
+// memory fields - on next apply he gets a plan error.
+func TestAccVcdVAppVm_Minimal(t *testing.T) {
+	var vapp govcd.VApp
+	var vm govcd.VM
+
+	var params = StringMap{
+		"Org":         testConfig.VCD.Org,
+		"Vdc":         testConfig.VCD.Vdc,
+		"Catalog":     testSuiteCatalogName,
+		"CatalogItem": testSuiteCatalogOVAItem,
+		"VappName":    vappName2,
+		"VmName":      vmName,
+		"Tags":        "vapp vm",
+	}
+
+	configText := templateFill(testAccCheckVcdVAppVm_minimal, params)
+	if vcdShortTest {
+		t.Skip(acceptanceTestsSkipped)
+		return
+	}
+
+	debugPrintf("#[DEBUG] CONFIGURATION: %s\n", configText)
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckVcdVAppVmDestroy(vappName2),
+		Steps: []resource.TestStep{
+			resource.TestStep{
+				Config: configText,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckVcdVAppVmExists(vappName2, vmName, "vcd_vapp_vm.vm", &vapp, &vm),
+					resource.TestCheckResourceAttr("vcd_vapp_vm.vm", "name", vmName),
+					resource.TestCheckResourceAttr("vcd_vapp_vm.vm", "power_on", "true"),
+				),
+			},
+		},
+	})
+}
+
+const testAccCheckVcdVAppVm_minimal = `
+resource "vcd_vapp" "vapp" {
+  name = "{{.VappName}}"
+  org  = "{{.Org}}"
+  vdc  = "{{.Vdc}}"
+}
+
+resource "vcd_vapp_vm" "vm" {
+  org           = "{{.Org}}"
+  vdc           = "{{.Vdc}}"
+  vapp_name     = vcd_vapp.vapp.name
+  name          = "{{.VmName}}"
+  catalog_name  = "{{.Catalog}}"
+  template_name = "{{.CatalogItem}}"
 }
 `
