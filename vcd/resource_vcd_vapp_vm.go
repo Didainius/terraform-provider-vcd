@@ -12,8 +12,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
-
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
@@ -277,26 +275,8 @@ var vappVmSchema = map[string]*schema.Schema{
 			"bus_number": {
 				Type:        schema.TypeInt,
 				ForceNew:    true,
-<<<<<<< HEAD
-				Description: "The catalog name in which to find the given vApp Template",
-			},
-			"description": &schema.Schema{
-				Type:        schema.TypeString,
-				Computed:    true,
-				Description: "The VM description",
-				// Note: description is read only, as we lack the needed fields to set it at creation.
-				// Currently, this field has the description of the OVA used to create the VM
-			},
-			"memory": &schema.Schema{
-				Type:             schema.TypeInt,
-				Optional:         true,
-				Description:      "The amount of RAM (in MB) to allocate to the VM",
-				ValidateFunc:     validateMultipleOf4(),
-				DiffSuppressFunc: suppressExistingToNull(),
-=======
 				Required:    true,
 				Description: "The number of the SCSI or IDE controller itself.",
->>>>>>> master
 			},
 			"unit_number": {
 				Type:        schema.TypeInt,
