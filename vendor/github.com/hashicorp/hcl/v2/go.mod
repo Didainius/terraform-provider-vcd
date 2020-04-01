@@ -1,5 +1,7 @@
 module github.com/hashicorp/hcl/v2
 
+go 1.14
+
 require (
 	github.com/agext/levenshtein v1.2.1
 	github.com/apparentlymart/go-dump v0.0.0-20180507223929-23540a00eaa3
