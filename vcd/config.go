@@ -1,7 +1,11 @@
 package vcd
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/sha1"
+	"encoding/base64"
+	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -430,6 +434,72 @@ func ProviderAuthenticateSaml(client *govcd.VCDClient, domainUser, domainPasswor
 	}
 
 	log.Println("DAINIUS auth response: ", string(r))
+
+	responseStruct := ResponseEnvelope{}
+
+	err = xml.Unmarshal(r, &responseStruct)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal response body: %s", err)
+	}
+
+	tokenPart := responseStruct.Body.RequestSecurityTokenResponseCollection.RequestSecurityTokenResponse.RequestedSecurityTokenTxt.Text
+	log.Printf("DAINIUS EncryptedAssertion %+#v", tokenPart)
+
+	// e, err := xml.Marshal(responseStruct.Body.RequestSecurityTokenResponseCollection.RequestSecurityTokenResponse.RequestedSecurityToken.EncryptedAss)
+	// if err != nil {
+	// 	return fmt.Errorf("unable marshal : %s", err)
+	// }
+
+	log.Printf("DAINIUS encrypted assertion: %s", tokenPart)
+
+	// g, err := gzip.
+
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	if _, err := gz.Write([]byte(tokenPart)); err != nil {
+		log.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		log.Fatal(err)
+	}
+	// fmt.Println(b.Bytes())
+	// b.S
+	// bbb, err := base64.StdEncoding.E
+	sEnc := base64.StdEncoding.EncodeToString(b.Bytes())
+	// sEnc := base64.StdEncoding.DecodeString(b)
+
+	log.Printf("DAINIUS encoded test %s", sEnc)
+
+	/// # Got data, try to authenticate against vCD
+
+	req, err := http.NewRequest(http.MethodPost, "https://192.168.1.160/api/sessions", nil)
+	if err != nil {
+		return fmt.Errorf("error posting: %s", err)
+	}
+	req.Header.Add("Accept", "application/*+xml;version=29.0")
+	req.Header.Add("Authorization", `SIGN token="`+sEnc+`",org="`+org+`"`)
+
+	log.Printf("DAINIUS headers: %+#v", req.Header)
+	log.Printf("DAINIUS sign: %s", req.Header.Get("Authorization"))
+
+	resp, err = client.Client.Http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	iii, _ := ioutil.ReadAll(resp.Body)
+	log.Printf("DAINIUS status code: %d", resp.StatusCode)
+	log.Printf("DAINIUS body: %s", string(iii))
+	log.Printf("DAINIUS %+#v", resp.Header)
+
+	accessToken := resp.Header.Get("X-Vcloud-Authorization")
+	log.Printf("DAINIUS %s", accessToken)
+
+	err = client.SetToken(org, govcd.AuthorizationHeader, accessToken)
+	if err != nil {
+		return fmt.Errorf("error during token-based authentication: %s", err)
+	}
+
 	return nil
 }
 
