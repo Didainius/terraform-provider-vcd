@@ -114,6 +114,13 @@ func Provider() terraform.ResourceProvider {
 				Description: "The token used instead of username/password for VCD API operations.",
 			},
 
+			"use_adfs_saml": &schema.Schema{
+				Type:        schema.TypeBool,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("USE_ADFS_SAML", nil),
+				Description: "Enable to try and use ADFS SAML authentication",
+			},
+
 			"sysorg": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -206,6 +213,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		Href:            d.Get("url").(string),
 		MaxRetryTimeout: maxRetryTimeout,
 		InsecureFlag:    d.Get("allow_unverified_ssl").(bool),
+		UseAdfsSaml:     d.Get("use_adfs_saml").(bool),
 	}
 	// If the provider includes logging directives,
 	// it will activate logging from upstream go-vcloud-director

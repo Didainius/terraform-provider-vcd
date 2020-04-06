@@ -206,3 +206,94 @@ type EncryptedAssertion struct {
 		} `xml:"CipherData"`
 	} `xml:"EncryptedData"`
 }
+
+type ErrorEnvelope struct {
+	XMLName xml.Name `xml:"Envelope"`
+	Text    string   `xml:",chardata"`
+	S       string   `xml:"s,attr"`
+	A       string   `xml:"a,attr"`
+	U       string   `xml:"u,attr"`
+	Header  struct {
+		Text   string `xml:",chardata"`
+		Action struct {
+			Text           string `xml:",chardata"`
+			MustUnderstand string `xml:"mustUnderstand,attr"`
+		} `xml:"Action"`
+		Security struct {
+			Text           string `xml:",chardata"`
+			MustUnderstand string `xml:"mustUnderstand,attr"`
+			O              string `xml:"o,attr"`
+			Timestamp      struct {
+				Text    string `xml:",chardata"`
+				ID      string `xml:"Id,attr"`
+				Created string `xml:"Created"`
+				Expires string `xml:"Expires"`
+			} `xml:"Timestamp"`
+		} `xml:"Security"`
+	} `xml:"Header"`
+	Body struct {
+		Text  string `xml:",chardata"`
+		Fault struct {
+			Text string `xml:",chardata"`
+			Code struct {
+				Text    string `xml:",chardata"`
+				Value   string `xml:"Value"`
+				Subcode struct {
+					Text  string `xml:",chardata"`
+					Value struct {
+						Text string `xml:",chardata"`
+						A    string `xml:"a,attr"`
+					} `xml:"Value"`
+				} `xml:"Subcode"`
+			} `xml:"Code"`
+			Reason struct {
+				Chardata string `xml:",chardata"`
+				Text     struct {
+					Text string `xml:",chardata"`
+					Lang string `xml:"lang,attr"`
+				} `xml:"Text"`
+			} `xml:"Reason"`
+		} `xml:"Fault"`
+	} `xml:"Body"`
+}
+
+type EntityDescriptor struct {
+	XMLName         xml.Name `xml:"EntityDescriptor"`
+	Text            string   `xml:",chardata"`
+	ID              string   `xml:"ID,attr"`
+	EntityID        string   `xml:"entityID,attr"`
+	Md              string   `xml:"md,attr"`
+	SPSSODescriptor struct {
+		Text                       string `xml:",chardata"`
+		AuthnRequestsSigned        string `xml:"AuthnRequestsSigned,attr"`
+		WantAssertionsSigned       string `xml:"WantAssertionsSigned,attr"`
+		ProtocolSupportEnumeration string `xml:"protocolSupportEnumeration,attr"`
+		KeyDescriptor              []struct {
+			Text    string `xml:",chardata"`
+			Use     string `xml:"use,attr"`
+			KeyInfo struct {
+				Text     string `xml:",chardata"`
+				Ds       string `xml:"ds,attr"`
+				X509Data struct {
+					Text            string `xml:",chardata"`
+					X509Certificate string `xml:"X509Certificate"`
+				} `xml:"X509Data"`
+			} `xml:"KeyInfo"`
+		} `xml:"KeyDescriptor"`
+		SingleLogoutService []struct {
+			Text     string `xml:",chardata"`
+			Binding  string `xml:"Binding,attr"`
+			Location string `xml:"Location,attr"`
+		} `xml:"SingleLogoutService"`
+		NameIDFormat             []string `xml:"NameIDFormat"`
+		AssertionConsumerService []struct {
+			Text            string `xml:",chardata"`
+			Binding         string `xml:"Binding,attr"`
+			Location        string `xml:"Location,attr"`
+			Index           string `xml:"index,attr"`
+			IsDefault       string `xml:"isDefault,attr"`
+			ProtocolBinding string `xml:"ProtocolBinding,attr"`
+			Hoksso          string `xml:"hoksso,attr"`
+		} `xml:"AssertionConsumerService"`
+	} `xml:"SPSSODescriptor"`
+}
