@@ -2,7 +2,7 @@ package vcd
 
 import "encoding/xml"
 
-type ResponseEnvelope struct {
+type AuthResponseEnvelope struct {
 	XMLName xml.Name `xml:"Envelope"`
 	Text    string   `xml:",chardata"`
 	S       string   `xml:"s,attr"`
