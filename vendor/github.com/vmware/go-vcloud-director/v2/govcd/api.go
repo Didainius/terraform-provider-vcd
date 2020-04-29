@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -35,10 +34,20 @@ type Client struct {
 	// This must be >0 to avoid instant timeout errors.
 	MaxRetryTimeout int
 
+	// UseSamlAdfs specifies if SAML auth is used for authenticating vCD instead of local login.
+	// The following conditions must be met so that authentication SAML authentication works:
+	// * SAML IdP (Identity Provider) is Active Directory Federation Service (ADFS)
+	// * Authentication endpoint "/adfs/services/trust/13/usernamemixed" must be enabled on ADFS
+	// server
+	UseSamlAdfs bool
+	// CustomAdfsRptId allows to set custom Relaying Party Trust identifier. By default vCD Entity
+	// ID is used as Relaying Party Trust identifier.
+	CustomAdfsRptId string
+
 	supportedVersions SupportedVersions // Versions from /api/versions endpoint
 }
 
-// The header key used by default to set the authorization token.
+// AuthorizationHeader header key used by default to set the authorization token.
 const AuthorizationHeader = "X-Vcloud-Authorization"
 
 // General purpose error to be used whenever an entity is not found from a "GET" request
@@ -156,6 +165,14 @@ func (cli *Client) NewRequestWitNotEncodedParamsWithApiVersion(params map[string
 		}
 	}
 
+	// If the body contains data - try to read all contents for logging and re-create another
+	// io.Reader with all contents
+	var readBody []byte
+	if body != nil {
+		readBody, _ = ioutil.ReadAll(body)
+		body = bytes.NewReader(readBody)
+	}
+
 	// Build the request, no point in checking for errors here as we're just
 	// passing a string version of an url.URL struct and http.NewRequest returns
 	// error only if can't process an url.ParseRequestURI().
@@ -184,7 +201,9 @@ func (cli *Client) NewRequestWitNotEncodedParamsWithApiVersion(params map[string
 			} else {
 				// With this content, we'll know that the payload is not really empty, but
 				// it was unavailable due to the body type.
-				payload = fmt.Sprintf("<Not retrieved from type %s>", reflect.TypeOf(body))
+
+				// payload = fmt.Sprintf("<Not retrieved from type %s>", reflect.TypeOf(body))
+				payload = string(readBody)
 			}
 		}
 		util.ProcessRequestOutput(util.FuncNameCallStack(), method, reqUrl.String(), payload, req)
@@ -195,8 +214,7 @@ func (cli *Client) NewRequestWitNotEncodedParamsWithApiVersion(params map[string
 
 }
 
-// NewRequest creates a new HTTP request and applies necessary auth headers if
-// set.
+// NewRequest creates a new HTTP request and applies necessary auth headers if set.
 func (cli *Client) NewRequest(params map[string]string, method string, reqUrl url.URL, body io.Reader) *http.Request {
 	return cli.NewRequestWitNotEncodedParams(params, nil, method, reqUrl, body)
 }
@@ -230,9 +248,13 @@ func decodeBody(resp *http.Response, out interface{}) error {
 	}
 
 	debugShowResponse(resp, body)
-	// Unmarshal the XML.
-	if err = xml.Unmarshal(body, &out); err != nil {
-		return err
+
+	// only attempty to unmarshal if body is not empty
+	if len(body) > 0 {
+		// Unmarshal the XML.
+		if err = xml.Unmarshal(body, &out); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -259,7 +281,8 @@ func checkRespWithErrType(resp *http.Response, err, errType error) (*http.Respon
 		http.StatusOK,        // 200
 		http.StatusCreated,   // 201
 		http.StatusAccepted,  // 202
-		http.StatusNoContent: // 204
+		http.StatusNoContent, // 204
+		http.StatusFound:     // 302
 		return resp, nil
 	// Invalid request, parse the XML error returned and return it.
 	case

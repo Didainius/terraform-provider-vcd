@@ -13,6 +13,11 @@ provider:
     password: somepassword
     # If token is provided, username and password are ignored
     token: an_auth_token
+    # If useSamlAdfs is true - client will try to authenticate against ADFS using SAML.
+    useSamlAdfs: false
+    # customAdfsRptId allows to specify custom Relaying Part Trust Identifier. By default client
+    # will use vCD SAML Entity ID
+    # customAdfsRptId: ""
     #
     # The vCD address, in the format https://vCD_IP/api
     # or https://vCD_host_name/api

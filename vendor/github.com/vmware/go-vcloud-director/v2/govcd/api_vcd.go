@@ -6,6 +6,7 @@ package govcd
 
 import (
 	"crypto/tls"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -117,7 +118,7 @@ func NewVCDClient(vcdEndpoint url.URL, insecure bool, options ...VCDClientOption
 	return vcdClient
 }
 
-// Authenticate is an helper function that performs a login in vCloud Director.
+// Authenticate is a helper function that performs a login in vCloud Director.
 func (vcdCli *VCDClient) Authenticate(username, password, org string) error {
 	_, err := vcdCli.GetAuthResponse(username, password, org)
 	return err
@@ -132,11 +133,24 @@ func (vcdCli *VCDClient) GetAuthResponse(username, password, org string) (*http.
 	if err != nil {
 		return nil, fmt.Errorf("error finding LoginUrl: %s", err)
 	}
-	// Authorize
-	resp, err := vcdCli.vcdAuthorize(username, password, org)
-	if err != nil {
-		return nil, fmt.Errorf("error authorizing: %s", err)
+
+	// Choose correct auth mechanism based on what type of authentication is used. The end result
+	// for each of the below functions is to set authorization token vcdCli.Client.VCDToken.
+	var resp *http.Response
+	switch {
+	case vcdCli.Client.UseSamlAdfs:
+		err = vcdCli.vcdAuthorizeSamlAdfs(username, password, org, vcdCli.Client.CustomAdfsRptId)
+		if err != nil {
+			return nil, fmt.Errorf("error authorizing SAML: %s", err)
+		}
+	default:
+		// Authorize
+		resp, err = vcdCli.vcdAuthorize(username, password, org)
+		if err != nil {
+			return nil, fmt.Errorf("error authorizing: %s", err)
+		}
 	}
+
 	return resp, nil
 }
 
@@ -216,4 +230,60 @@ func WithHttpTimeout(timeout int64) VCDClientOption {
 		vcdClient.Client.Http.Timeout = time.Duration(timeout) * time.Second
 		return nil
 	}
+}
+
+// WithSamlAdfs specifies if SAML auth is used for authenticating vCD instead of local login.
+// The following conditions must be met so that SAML authentication works:
+// * SAML IdP (Identity Provider) is Active Directory Federation Service (ADFS)
+// * Authentication endpoint "/adfs/services/trust/13/usernamemixed" must be enabled on ADFS
+// server
+// By default vCD SAML Entity ID will be used as Relaying Party Trust Identifier unless
+// customAdfsRptId is specified
+func WithSamlAdfs(useSaml bool, customAdfsRptId string) VCDClientOption {
+	return func(vcdClient *VCDClient) error {
+		vcdClient.Client.UseSamlAdfs = useSaml
+		vcdClient.Client.CustomAdfsRptId = customAdfsRptId
+		return nil
+	}
+}
+
+type EntityDescriptor struct {
+	XMLName         xml.Name `xml:"EntityDescriptor"`
+	Text            string   `xml:",chardata"`
+	ID              string   `xml:"ID,attr"`
+	EntityID        string   `xml:"entityID,attr"`
+	Md              string   `xml:"md,attr"`
+	SPSSODescriptor struct {
+		Text                       string `xml:",chardata"`
+		AuthnRequestsSigned        string `xml:"AuthnRequestsSigned,attr"`
+		WantAssertionsSigned       string `xml:"WantAssertionsSigned,attr"`
+		ProtocolSupportEnumeration string `xml:"protocolSupportEnumeration,attr"`
+		KeyDescriptor              []struct {
+			Text    string `xml:",chardata"`
+			Use     string `xml:"use,attr"`
+			KeyInfo struct {
+				Text     string `xml:",chardata"`
+				Ds       string `xml:"ds,attr"`
+				X509Data struct {
+					Text            string `xml:",chardata"`
+					X509Certificate string `xml:"X509Certificate"`
+				} `xml:"X509Data"`
+			} `xml:"KeyInfo"`
+		} `xml:"KeyDescriptor"`
+		SingleLogoutService []struct {
+			Text     string `xml:",chardata"`
+			Binding  string `xml:"Binding,attr"`
+			Location string `xml:"Location,attr"`
+		} `xml:"SingleLogoutService"`
+		NameIDFormat             []string `xml:"NameIDFormat"`
+		AssertionConsumerService []struct {
+			Text            string `xml:",chardata"`
+			Binding         string `xml:"Binding,attr"`
+			Location        string `xml:"Location,attr"`
+			Index           string `xml:"index,attr"`
+			IsDefault       string `xml:"isDefault,attr"`
+			ProtocolBinding string `xml:"ProtocolBinding,attr"`
+			Hoksso          string `xml:"hoksso,attr"`
+		} `xml:"AssertionConsumerService"`
+	} `xml:"SPSSODescriptor"`
 }
