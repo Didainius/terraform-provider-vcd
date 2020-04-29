@@ -106,6 +106,18 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.EnvDefaultFunc("VCD_PASSWORD", nil),
 				Description: "The user password for VCD API operations.",
 			},
+			"use_adfs_saml": &schema.Schema{
+				Type:     schema.TypeBool,
+				Optional: true,
+				// DefaultFunc: schema.EnvDefaultFunc("VCD_PASSWORD", nil),
+				// Description: "The user password for VCD API operations.",
+			},
+			"saml_rpt_id": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				// DefaultFunc: schema.EnvDefaultFunc("VCD_PASSWORD", nil),
+				// Description: "The user password for VCD API operations.",
+			},
 
 			"token": &schema.Schema{
 				Type:        schema.TypeString,
@@ -206,6 +218,8 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		Href:            d.Get("url").(string),
 		MaxRetryTimeout: maxRetryTimeout,
 		InsecureFlag:    d.Get("allow_unverified_ssl").(bool),
+		UseSamlAdfs:     d.Get("use_adfs_saml").(bool),
+		CustomAdfsRptId: d.Get("saml_rpt_id").(string),
 	}
 	// If the provider includes logging directives,
 	// it will activate logging from upstream go-vcloud-director
