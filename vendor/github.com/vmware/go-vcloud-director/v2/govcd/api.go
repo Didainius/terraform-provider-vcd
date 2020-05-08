@@ -149,6 +149,12 @@ func (cli *Client) NewRequestWitNotEncodedParams(params map[string]string, notEn
 // * body - request body
 // * apiVersion - provided Api version overrides default Api version value used in request parameter
 func (cli *Client) NewRequestWitNotEncodedParamsWithApiVersion(params map[string]string, notEncodedParams map[string]string, method string, reqUrl url.URL, body io.Reader, apiVersion string) *http.Request {
+	return cli.newRequest(params, notEncodedParams, method, reqUrl, body, apiVersion, nil)
+}
+
+// newRequest is the parent of many "specific" "NewRequest" functions.
+// Note. It is kept private to avoid breaking public API on every new field addition.
+func (cli *Client) newRequest(params map[string]string, notEncodedParams map[string]string, method string, reqUrl url.URL, body io.Reader, apiVersion string, additionalHeader http.Header) *http.Request {
 	reqValues := url.Values{}
 
 	// Build up our request parameters
@@ -166,7 +172,7 @@ func (cli *Client) NewRequestWitNotEncodedParamsWithApiVersion(params map[string
 	}
 
 	// If the body contains data - try to read all contents for logging and re-create another
-	// io.Reader with all contents
+	// io.Reader with all contents to use it down the line
 	var readBody []byte
 	if body != nil {
 		readBody, _ = ioutil.ReadAll(body)
@@ -181,35 +187,32 @@ func (cli *Client) NewRequestWitNotEncodedParamsWithApiVersion(params map[string
 	if cli.VCDAuthHeader != "" && cli.VCDToken != "" {
 		// Add the authorization header
 		req.Header.Add(cli.VCDAuthHeader, cli.VCDToken)
+	}
+	if (cli.VCDAuthHeader != "" && cli.VCDToken != "") ||
+		(additionalHeader != nil && additionalHeader.Get("Authorization") != "") {
 		// Add the Accept header for VCD
 		req.Header.Add("Accept", "application/*+xml;version="+apiVersion)
 	}
 
-	// Avoids passing data if the logging of requests is disabled
-	if util.LogHttpRequest {
-		// Makes a safe copy of the request body, and passes it
-		// to the processing function.
-		payload := ""
-		if req.ContentLength > 0 {
-			// We try to convert body to a *bytes.Buffer
-			var ibody interface{} = body
-			bbody, ok := ibody.(*bytes.Buffer)
-			// If the inner object is a bytes.Buffer, we get a safe copy of the data.
-			// If it is really just an io.Reader, we don't, as the copy would empty the reader
-			if ok {
-				payload = bbody.String()
-			} else {
-				// With this content, we'll know that the payload is not really empty, but
-				// it was unavailable due to the body type.
-
-				// payload = fmt.Sprintf("<Not retrieved from type %s>", reflect.TypeOf(body))
-				payload = string(readBody)
+	// Merge in additional headers before logging if any where specified
+	if additionalHeader != nil && len(additionalHeader) > 0 {
+		for headerName, headerValueSlice := range additionalHeader {
+			for _, singleHeaderValue := range headerValueSlice {
+				req.Header.Add(headerName, singleHeaderValue)
 			}
 		}
-		util.ProcessRequestOutput(util.FuncNameCallStack(), method, reqUrl.String(), payload, req)
+	}
 
+	// Avoids passing data if the logging of requests is disabled
+	if util.LogHttpRequest {
+		payload := ""
+		if req.ContentLength > 0 {
+			payload = string(readBody)
+		}
+		util.ProcessRequestOutput(util.FuncNameCallStack(), method, reqUrl.String(), payload, req)
 		debugShowRequest(req, payload)
 	}
+
 	return req
 
 }

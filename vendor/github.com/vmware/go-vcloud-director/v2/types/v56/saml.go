@@ -11,12 +11,14 @@ import (
 
 // VcdSamlMetadata helps to marshal vCD SAML Metadata endpoint response
 // https://1.1.1.1/cloud/org/my-org/saml/metadata/alias/vcd
+// This body is huge, although only documented fields are used.
 type VcdSamlMetadata struct {
-	XMLName         xml.Name `xml:"EntityDescriptor"`
-	Text            string   `xml:",chardata"`
-	ID              string   `xml:"ID,attr"`
-	EntityID        string   `xml:"entityID,attr"`
-	Md              string   `xml:"md,attr"`
+	XMLName xml.Name `xml:"EntityDescriptor"`
+	Text    string   `xml:",chardata"`
+	ID      string   `xml:"ID,attr"`
+	// EntityID is the configured vCD Entity ID which is used in ADFS authentication request
+	EntityID        string `xml:"entityID,attr"`
+	Md              string `xml:"md,attr"`
 	SPSSODescriptor struct {
 		Text                       string `xml:",chardata"`
 		AuthnRequestsSigned        string `xml:"AuthnRequestsSigned,attr"`
@@ -161,6 +163,7 @@ type AdfsAuthResponseEnvelope struct {
 						Address string `xml:"Address"`
 					} `xml:"EndpointReference"`
 				} `xml:"AppliesTo"`
+				// RequestedSecurityTokenTxt returns data which is accepted by vCD as a SIGN token
 				RequestedSecurityTokenTxt InnerXML `xml:"RequestedSecurityToken"`
 				RequestedDisplayToken     struct {
 					Text         string `xml:",chardata"`

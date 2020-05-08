@@ -123,7 +123,7 @@ func (cli *Client) vcdFetchSupportedVersions() error {
 
 	cli.supportedVersions = *suppVersions
 
-	// Supported API versions in one line to help identify vCD version from logs
+	// Log all supported API versions in one line to help identify vCD version from logs
 	allApiVersions := make([]string, len(cli.supportedVersions.VersionInfos))
 	for versionIndex, version := range cli.supportedVersions.VersionInfos {
 		allApiVersions[versionIndex] = version.Version
