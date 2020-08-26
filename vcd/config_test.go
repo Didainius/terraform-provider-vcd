@@ -1011,3 +1011,19 @@ func (env *envHelper) restoreVcdVars() {
 		os.Setenv(keyName, valueName)
 	}
 }
+
+// skipNoNsxtConfiguration allows to skip a test if NSX-T configuration is missing
+func skipNoNsxtConfiguration(t *testing.T) {
+	generalMessage := "Missing NSX-T config: "
+	if testConfig.VCD.NsxtProviderVdc.Name == "" {
+		t.Skip(generalMessage + "No provider vdc specified")
+	}
+	if testConfig.VCD.NsxtProviderVdc.NetworkPool == "" {
+		t.Skip(generalMessage + "No network pool specified")
+	}
+
+	if testConfig.VCD.NsxtProviderVdc.StorageProfile == "" {
+		t.Skip(generalMessage + "No storage profile specified")
+	}
+
+}
