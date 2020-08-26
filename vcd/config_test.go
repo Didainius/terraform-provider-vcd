@@ -86,6 +86,11 @@ type TestConfig struct {
 			NetworkPool    string `json:"networkPool"`
 			StorageProfile string `json:"storageProfile"`
 		} `json:"providerVdc"`
+		NsxtProviderVdc struct {
+			Name           string `json:"name"`
+			StorageProfile string `json:"storageProfile"`
+			NetworkPool    string `json:"networkPool"`
+		} `json:"nsxtProviderVdc"`
 		Catalog struct {
 			Name                    string `json:"name,omitempty"`
 			CatalogItem             string `json:"catalogItem,omitempty"`
