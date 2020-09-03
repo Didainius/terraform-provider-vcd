@@ -112,6 +112,10 @@ type TestConfig struct {
 			PeerSubnetGateway string `json:"peerSubnetGw"`
 		} `json:"peer"`
 	} `json:"networking"`
+	Nsxt struct {
+		Manager     string `json:"manager"`
+		Tier0router string `json:"tier0router"`
+	} `json:"nsxt"`
 	Logging struct {
 		Enabled         bool   `json:"enabled,omitempty"`
 		LogFileName     string `json:"logFileName,omitempty"`

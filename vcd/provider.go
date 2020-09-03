@@ -53,6 +53,8 @@ var globalDataSourceMap = map[string]*schema.Resource{
 	"vcd_vapp_network":       datasourceVcdVappNetwork(),      // 2.7
 	"vcd_vapp_org_network":   datasourceVcdVappOrgNetwork(),   // 2.7
 	"vcd_vm_affinity_rule":   datasourceVcdVmAffinityRule(),   // 2.9
+	"vcd_nsxt_manager":       datasourceVcdNsxtManager(),      // 3.0
+	"vcd_nsxt_tier0_router":  datasourceVcdNsxtTier0Router(),  // 3.0
 }
 
 var globalResourceMap = map[string]*schema.Resource{

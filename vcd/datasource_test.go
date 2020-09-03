@@ -118,7 +118,15 @@ func addMandatoryParams(dataSourceName string, mandatoryFields []string, t *test
 				return ""
 			}
 			templateFields = templateFields + `vapp_name = "` + vapp.VApp.Name + `"` + "\n"
-
+		case "nsxt_manager_id":
+			client := createTemporaryVCDConnection()
+			// This test needs a valid nsxt_manager_id
+			nsxtManager, err := client.QueryNsxtManagerByName(testConfig.Nsxt.Manager)
+			if err != nil {
+				t.Skipf("No suitable NSX-T manager found for this test: %s", err)
+				return ""
+			}
+			templateFields = templateFields + `nsxt_manager_id = "` + nsxtManager[0].Urn() + `"` + "\n"
 			// Invalid fields which are required for some resources for search (usually they are used instead of `name`)
 		case "rule_id":
 			templateFields = templateFields + `rule_id = "347928347234"` + "\n"

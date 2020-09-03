@@ -237,7 +237,7 @@ func retrieveUserWithTimeout(adminOrg *AdminOrg, userName string) (*OrgUser, err
 // (This operation does not return a task)
 // This function returns as soon as the user has been created, which could be as
 // little as 200ms or as much as Client.MaxRetryTimeout
-// Mandatory fields are: Name, Role, Password.
+// Mandatory fields are: Name, NsxtTier0Router, Password.
 // https://code.vmware.com/apis/442/vcloud-director#/doc/doc/operations/POST-CreateUser.html
 func (adminOrg *AdminOrg) CreateUser(userConfiguration *types.User) (*OrgUser, error) {
 	err := validateUserForCreation(userConfiguration)
@@ -537,7 +537,7 @@ func validateUserForCreation(user *types.User) error {
 		}
 	}
 	if user.Role.HREF == "" {
-		return fmt.Errorf(missingField, "Role.HREF")
+		return fmt.Errorf(missingField, "NsxtTier0Router.HREF")
 	}
 	return nil
 }

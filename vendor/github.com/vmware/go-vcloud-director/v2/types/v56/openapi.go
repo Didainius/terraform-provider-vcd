@@ -50,3 +50,10 @@ type Role struct {
 	BundleKey   string `json:"bundleKey"`
 	ReadOnly    bool   `json:"readOnly"`
 }
+
+// NsxtTier0Router defines NSX-T Tier 0 router
+type NsxtTier0Router struct {
+	ID          string `json:"id,omitempty"`
+	Description string `json:"description"`
+	DisplayName string `json:"displayName"`
+}
