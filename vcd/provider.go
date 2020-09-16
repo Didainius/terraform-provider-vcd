@@ -55,6 +55,8 @@ var globalDataSourceMap = map[string]*schema.Resource{
 	"vcd_vm_affinity_rule":   datasourceVcdVmAffinityRule(),   // 2.9
 	"vcd_nsxt_manager":       datasourceVcdNsxtManager(),      // 3.0
 	"vcd_nsxt_tier0_router":  datasourceVcdNsxtTier0Router(),  // 3.0
+	"vcd_portgroup":          datasourceVcdPortgroup(),        // 3.0
+	"vcd_vcenter":            datasourceVcdVcenter(),          // 3.0
 }
 
 var globalResourceMap = map[string]*schema.Resource{
@@ -97,6 +99,7 @@ var globalResourceMap = map[string]*schema.Resource{
 	"vcd_vapp_static_routing": resourceVcdVappNetworkStaticRouting(), // 2.9
 	"vcd_vm_affinity_rule":    resourceVcdVmAffinityRule(),           // 2.9
 	"vcd_vapp_access_control": resourceVcdAccessControlVapp(),        // 3.0
+	"vcd_external_network_v2": resourceVcdExternalNetworkV2(),        // 3.0
 }
 
 // Provider returns a terraform.ResourceProvider.
