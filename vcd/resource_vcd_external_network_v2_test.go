@@ -94,15 +94,28 @@ resource "vcd_external_network_v2" "ext-net-nsxt" {
   }
 
   ip_scope {
-    gateway      = "{{.Gateway}}"
-    netmask      = "{{.Netmask}}"
-    dns1         = "{{.Dns1}}"
-    dns2         = "{{.Dns2}}"
-    dns_suffix   = "company.biz"
+    enabled       = false
+    gateway       = "{{.Gateway}}"
+    prefix_length = "{{.Netmask}}"
 
     static_ip_pool {
       start_address = "{{.StartAddress}}"
       end_address   = "{{.EndAddress}}"
+    }
+  }
+
+  ip_scope {
+    gateway       = "14.14.14.1"
+    prefix_length = "24"
+
+    static_ip_pool {
+      start_address = "14.14.14.10"
+      end_address   = "14.14.14.15"
+    }
+    
+    static_ip_pool {
+      start_address = "14.14.14.20"
+      end_address   = "14.14.14.25"
     }
   }
 }
@@ -155,6 +168,8 @@ func TestAccVcdExternalNetworkV2Nsxv(t *testing.T) {
 				Config: configText,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "name", TestAccVcdExternalNetwork),
+					resource.TestCheckResourceAttr(resourceName, "description", description),
+
 					// resource.TestCheckResourceAttr(resourceName, "vsphere_network.0.vcenter", testConfig.Networking.Vcenter),
 					// resource.TestCheckResourceAttr(resourceName, "vsphere_network.0.name", testConfig.Networking.ExternalNetworkPortGroup),
 					// resource.TestCheckResourceAttr(resourceName, "vsphere_network.0.type", testConfig.Networking.ExternalNetworkPortGroupType),
@@ -164,7 +179,6 @@ func TestAccVcdExternalNetworkV2Nsxv(t *testing.T) {
 					// resource.TestCheckResourceAttr(resourceName, "ip_scope.0.dns2", dns2),
 					// resource.TestCheckResourceAttr(resourceName, "ip_scope.0.static_ip_pool.0.start_address", startAddress),
 					// resource.TestCheckResourceAttr(resourceName, "ip_scope.0.static_ip_pool.0.end_address", endAddress),
-					resource.TestCheckResourceAttr(resourceName, "description", description),
 					// resource.TestCheckResourceAttr(resourceName, "retain_net_info_across_deployments", "false"),
 				),
 			},
@@ -189,15 +203,14 @@ resource "vcd_external_network_v2" "ext-net-nsxt" {
   vsphere_network {
     vcenter_id     = data.vcd_vcenter.vc.id
     portgroup_id   = data.vcd_portgroup.sw.id
-    portgroup_type = data.vcd_portgroup.sw.type
   }
 
   ip_scope {
-    gateway      = "{{.Gateway}}"
-    netmask      = "{{.Netmask}}"
-    dns1         = "{{.Dns1}}"
-    dns2         = "{{.Dns2}}"
-    dns_suffix   = "company.biz"
+    gateway       = "{{.Gateway}}"
+    prefix_length = "{{.Netmask}}"
+    dns1          = "{{.Dns1}}"
+    dns2          = "{{.Dns2}}"
+    dns_suffix    = "company.biz"
 
     static_ip_pool {
       start_address = "{{.StartAddress}}"
