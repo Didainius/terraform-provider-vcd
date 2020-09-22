@@ -111,7 +111,7 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.dns1", ""),
 					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.dns2", ""),
 					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.dns_suffix", ""),
-					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.enabled", "false"),
+					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.enabled", "true"),
 					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.gateway", "192.168.30.49"),
 					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.prefix_length", "24"),
 					resource.TestCheckResourceAttr(resourceName, "ip_scope.1428757071.static_ip_pool.#", "1"),
