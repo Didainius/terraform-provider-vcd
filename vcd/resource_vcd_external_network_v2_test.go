@@ -26,7 +26,7 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 		"NsxtManager":     testConfig.Nsxt.Manager,
 		"NsxtTier0Router": testConfig.Nsxt.Tier0router,
 
-		"ExternalNetworkName": TestAccVcdExternalNetwork,
+		"ExternalNetworkName": t.Name(),
 		"Type":                testConfig.Networking.ExternalNetworkPortGroupType,
 		"PortGroup":           testConfig.Networking.ExternalNetworkPortGroup,
 		"Vcenter":             testConfig.Networking.Vcenter,
@@ -56,7 +56,7 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 			resource.TestStep{
 				Config: configText,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", TestAccVcdExternalNetwork),
+					resource.TestCheckResourceAttr(resourceName, "name", t.Name()),
 					// resource.TestCheckResourceAttr(resourceName, "vsphere_network.0.vcenter", testConfig.Networking.Vcenter),
 					// resource.TestCheckResourceAttr(resourceName, "vsphere_network.0.name", testConfig.Networking.ExternalNetworkPortGroup),
 					// resource.TestCheckResourceAttr(resourceName, "vsphere_network.0.type", testConfig.Networking.ExternalNetworkPortGroupType),
@@ -69,6 +69,12 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "description", description),
 					// resource.TestCheckResourceAttr(resourceName, "retain_net_info_across_deployments", "false"),
 				),
+			},
+			resource.TestStep{
+				ResourceName:      resourceName + "-import",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdTopHierarchy(t.Name()),
 			},
 		},
 	})
@@ -137,7 +143,7 @@ func TestAccVcdExternalNetworkV2Nsxv(t *testing.T) {
 	dns2 := "192.168.0.196"
 	var params = StringMap{
 
-		"ExternalNetworkName": TestAccVcdExternalNetwork,
+		"ExternalNetworkName": t.Name(),
 		"Type":                testConfig.Networking.ExternalNetworkPortGroupType,
 		"PortGroup":           testConfig.Networking.ExternalNetworkPortGroup,
 		"Vcenter":             testConfig.Networking.Vcenter,
@@ -167,7 +173,7 @@ func TestAccVcdExternalNetworkV2Nsxv(t *testing.T) {
 			resource.TestStep{
 				Config: configText,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", TestAccVcdExternalNetwork),
+					resource.TestCheckResourceAttr(resourceName, "name", t.Name()),
 					resource.TestCheckResourceAttr(resourceName, "description", description),
 
 					// resource.TestCheckResourceAttr(resourceName, "vsphere_network.0.vcenter", testConfig.Networking.Vcenter),
@@ -181,6 +187,12 @@ func TestAccVcdExternalNetworkV2Nsxv(t *testing.T) {
 					// resource.TestCheckResourceAttr(resourceName, "ip_scope.0.static_ip_pool.0.end_address", endAddress),
 					// resource.TestCheckResourceAttr(resourceName, "retain_net_info_across_deployments", "false"),
 				),
+			},
+			resource.TestStep{
+				ResourceName:      resourceName + "-import",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdTopHierarchy(t.Name()),
 			},
 		},
 	})

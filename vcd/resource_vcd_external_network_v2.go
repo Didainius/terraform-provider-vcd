@@ -89,7 +89,7 @@ func resourceVcdExternalNetworkV2() *schema.Resource {
 		Delete: resourceVcdExternalNetworkV2Delete,
 		Read:   resourceVcdExternalNetworkV2Read,
 		Importer: &schema.ResourceImporter{
-			State: resourceVcdExternalNetworkImport,
+			State: resourceVcdExternalNetworkV2Import,
 		},
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -185,7 +185,7 @@ func resourceVcdExternalNetworkV2Update(d *schema.ResourceData, meta interface{}
 	vcdClient := meta.(*VCDClient)
 	log.Printf("[TRACE] update network V2 creation initiated")
 
-	extNet, err := govcd.GetExternalNetworkById(vcdClient.VCDClient, d.Id())
+	extNet, err := govcd.GetExternalNetworkV2ById(vcdClient.VCDClient, d.Id())
 	if err != nil {
 		return fmt.Errorf("could not find external network by ID '%s': %s", d.Id(), err)
 	}
@@ -210,7 +210,7 @@ func resourceVcdExternalNetworkV2Read(d *schema.ResourceData, meta interface{}) 
 	vcdClient := meta.(*VCDClient)
 	log.Printf("[TRACE] external network V2 creation initiated")
 
-	extNet, err := govcd.GetExternalNetworkById(vcdClient.VCDClient, d.Id())
+	extNet, err := govcd.GetExternalNetworkV2ById(vcdClient.VCDClient, d.Id())
 	if govcd.ContainsNotFound(err) {
 		d.SetId("")
 		return nil
@@ -226,12 +226,33 @@ func resourceVcdExternalNetworkV2Delete(d *schema.ResourceData, meta interface{}
 	vcdClient := meta.(*VCDClient)
 	log.Printf("[TRACE] external network V2 creation initiated")
 
-	extNet, err := govcd.GetExternalNetworkById(vcdClient.VCDClient, d.Id())
+	extNet, err := govcd.GetExternalNetworkV2ById(vcdClient.VCDClient, d.Id())
 	if err != nil {
 		return fmt.Errorf("could not find external network by ID '%s': %s", d.Id(), err)
 	}
 
 	return extNet.Delete()
+}
+
+// resourceVcdExternalNetworkV2Import is responsible for importing the resource.
+// The d.ID() field as being passed from `terraform import _resource_name_ _the_id_string_ requires
+// a name based dot-formatted path to the object to lookup the object and sets the id of object.
+// `terraform import` automatically performs `refresh` operation which loads up all other fields.
+// For this resource, the import path is just the external network name.
+//
+// Example import path (id): externalNetworkName
+// Example import command:   terraform import vcd_external_network_v2.externalNetworkName externalNetworkName
+func resourceVcdExternalNetworkV2Import(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+
+	vcdClient := meta.(*VCDClient)
+
+	extNetRes, err := govcd.GetExternalNetworkV2ByName(vcdClient.VCDClient, d.Id())
+	if err != nil {
+		return nil, fmt.Errorf("error fetching external network details %s", err)
+	}
+
+	d.SetId(extNetRes.ExternalNetwork.ID)
+	return []*schema.ResourceData{d}, nil
 }
 
 func getExternalNetworkV2Type(vcdClient *VCDClient, d *schema.ResourceData) (*types.ExternalNetworkV2, error) {
