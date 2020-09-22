@@ -126,7 +126,11 @@ func addMandatoryParams(dataSourceName string, mandatoryFields []string, t *test
 				t.Skipf("No suitable NSX-T manager found for this test: %s", err)
 				return ""
 			}
-			templateFields = templateFields + `nsxt_manager_id = "` + nsxtManager[0].Urn() + `"` + "\n"
+			nsxtManagerUrn, err := govcd.BuildUrnWithUuid("urn:vcloud:nsxtmanager:", extractUuid(nsxtManager[0].HREF))
+			if err != nil {
+				t.Errorf("error building URN for NSX-T manager")
+			}
+			templateFields = templateFields + `nsxt_manager_id = "` + nsxtManagerUrn + `"` + "\n"
 			// Invalid fields which are required for some resources for search (usually they are used instead of `name`)
 		case "rule_id":
 			templateFields = templateFields + `rule_id = "347928347234"` + "\n"

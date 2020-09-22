@@ -1115,4 +1115,11 @@ func skipNoNsxtConfiguration(t *testing.T) {
 	if testConfig.VCD.NsxtProviderVdc.StorageProfile == "" {
 		t.Skip(generalMessage + "No storage profile specified")
 	}
+
+	if testConfig.Nsxt.Manager == "" {
+		t.Skip(generalMessage + "No NSX-T manager specified")
+	}
+	if testConfig.Nsxt.Tier0router == "" {
+		t.Skip(generalMessage + "No NSX-T Tier-0 specified")
+	}
 }

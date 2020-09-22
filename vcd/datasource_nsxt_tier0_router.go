@@ -61,7 +61,7 @@ func datasourceNsxtTier0RouterRead(d *schema.ResourceData, meta interface{}) err
 	// therefore we are searching for used Tier-0 router name in external networks. This should not cause any risks as
 	// required permissions should be of the same level.
 	if govcd.ContainsNotFound(err) {
-		extNets, err := govcd.GetAllExternalNetworks(vcdClient.VCDClient, nil)
+		extNets, err := govcd.GetAllExternalNetworksV2(vcdClient.VCDClient, nil)
 		if err != nil {
 			return fmt.Errorf("could not find external networks: %s", err)
 		}

@@ -82,6 +82,40 @@ var networkV2IpRange = &schema.Resource{
 	},
 }
 
+var networkV2NsxtNetwork = &schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"nsxt_manager_id": &schema.Schema{
+			Type:        schema.TypeString,
+			Required:    true,
+			ForceNew:    true,
+			Description: "ID of NSX-T manager",
+		},
+		"nsxt_tier0_router_id": &schema.Schema{
+			Type:        schema.TypeString,
+			Required:    true,
+			ForceNew:    true,
+			Description: "ID of NSX-T Tier-0 router",
+		},
+	},
+}
+
+var networkV2VsphereNetwork = &schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"vcenter_id": &schema.Schema{
+			Type:        schema.TypeString,
+			Required:    true,
+			ForceNew:    true,
+			Description: "The vCenter server name",
+		},
+		"portgroup_id": &schema.Schema{
+			Type:        schema.TypeString,
+			Required:    true,
+			ForceNew:    true,
+			Description: "The name of the port group",
+		},
+	},
+}
+
 func resourceVcdExternalNetworkV2() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceVcdExternalNetworkV2Create,
@@ -115,22 +149,7 @@ func resourceVcdExternalNetworkV2() *schema.Resource {
 				AtLeastOneOf: []string{"vsphere_network", "nsxt_network"},
 				ForceNew:     true,
 				Description:  "A list of port groups that back this network. Each referenced DV_PORTGROUP or NETWORK must exist on a vCenter server registered with the system.",
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"vcenter_id": &schema.Schema{
-							Type:        schema.TypeString,
-							Required:    true,
-							ForceNew:    true,
-							Description: "The vCenter server name",
-						},
-						"portgroup_id": &schema.Schema{
-							Type:        schema.TypeString,
-							Required:    true,
-							ForceNew:    true,
-							Description: "The name of the port group",
-						},
-					},
-				},
+				Elem:         networkV2VsphereNetwork,
 			},
 			"nsxt_network": &schema.Schema{
 				Type:         schema.TypeSet,
@@ -140,22 +159,7 @@ func resourceVcdExternalNetworkV2() *schema.Resource {
 				MaxItems:     1,
 				ForceNew:     true,
 				Description:  "",
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"nsxt_manager_id": &schema.Schema{
-							Type:        schema.TypeString,
-							Required:    true,
-							ForceNew:    true,
-							Description: "ID of NSX-T manager",
-						},
-						"nsxt_tier0_router_id": &schema.Schema{
-							Type:        schema.TypeString,
-							Required:    true,
-							ForceNew:    true,
-							Description: "ID of NSX-T Tier-0 router",
-						},
-					},
-				},
+				Elem:         networkV2NsxtNetwork,
 			},
 		},
 	}
@@ -252,6 +256,9 @@ func resourceVcdExternalNetworkV2Import(d *schema.ResourceData, meta interface{}
 	}
 
 	d.SetId(extNetRes.ExternalNetwork.ID)
+
+	setExternalNetworkV2Data(d, extNetRes.ExternalNetwork)
+
 	return []*schema.ResourceData{d}, nil
 }
 
@@ -406,6 +413,41 @@ func setExternalNetworkV2Data(d *schema.ResourceData, net *types.ExternalNetwork
 	err := d.Set("ip_scope", subnetSet)
 	if err != nil {
 		return fmt.Errorf("error setting 'ip_scope' block: %s", err)
+	}
+
+	// Switch on first value of backing ID. If it is NSX-T - it can be only one block (limited by schema).
+	// NSX-V can have more than one
+	switch net.NetworkBackings.Values[0].BackingType {
+	case types.ExternalNetworkBackingDvPortgroup, types.ExternalNetworkBackingTypeNetwork:
+		backingInterface := make([]interface{}, len(net.NetworkBackings.Values))
+		for backingIndex := range net.NetworkBackings.Values {
+			backing := net.NetworkBackings.Values[backingIndex]
+			backingMap := make(map[string]interface{})
+			backingMap["vcenter_id"] = backing.NetworkProvider.ID
+			backingMap["portgroup_id"] = backing.BackingID
+
+			backingInterface[backingIndex] = backingMap
+
+		}
+		backingSet := schema.NewSet(schema.HashResource(networkV2VsphereNetwork), backingInterface)
+		err := d.Set("vsphere_network", backingSet)
+		if err != nil {
+			return fmt.Errorf("error setting 'vsphere_network' block: %s", err)
+		}
+
+	case types.ExternalNetworkBackingTypeNsxtTier0Router:
+		backingInterface := make([]interface{}, 1)
+		backing := net.NetworkBackings.Values[0]
+		backingMap := make(map[string]interface{})
+		backingMap["nsxt_manager_id"] = backing.NetworkProvider.ID
+		backingMap["nsxt_tier0_router_id"] = backing.BackingID
+
+		backingInterface[0] = backingMap
+		backingSet := schema.NewSet(schema.HashResource(networkV2NsxtNetwork), backingInterface)
+		err := d.Set("nsxt_network", backingSet)
+		if err != nil {
+			return fmt.Errorf("error setting 'nsxt_network' block: %s", err)
+		}
 	}
 
 	return nil
