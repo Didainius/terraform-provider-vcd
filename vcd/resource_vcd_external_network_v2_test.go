@@ -9,7 +9,6 @@ import (
 
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
@@ -106,7 +105,6 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 			resource.TestStep{
 				Config: configText1,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					stateDumper(),
 					resource.TestCheckResourceAttr(resourceName, "name", t.Name()),
 					resource.TestCheckResourceAttr(resourceName, "description", description),
 					resource.TestCheckResourceAttr(resourceName, "vsphere_network.#", "0"),
@@ -443,13 +441,6 @@ func testAccCheckExternalNetworkDestroyV2(name string) resource.TestCheckFunc {
 			}
 		}
 
-		return nil
-	}
-}
-
-func stateDumper() resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		spew.Dump(s)
 		return nil
 	}
 }
