@@ -30,8 +30,14 @@ func datasourceVcenterRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error occured while querying vCenters: %s", err)
 	}
 
-	if len(vcs) != 1 {
-		return fmt.Errorf("could not identify single vCenter. Got %d with name '%s'", len(vcs), vCenterName)
+	if len(vcs) == 0 {
+		return fmt.Errorf("%s: could not identify single vCenter. Got %d with name '%s'",
+			govcd.ErrorEntityNotFound, len(vcs), vCenterName)
+	}
+
+	if len(vcs) > 1 {
+		return fmt.Errorf("could not identify single vCenter. Got %d with name '%s'",
+			len(vcs), vCenterName)
 	}
 
 	vcUuid, err := govcd.GetUuidFromHref(vcs[0].HREF, true)

@@ -55,8 +55,14 @@ func datasourcePortgroupRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error querying for portgroups '%s' of type '%s': %s", portGroupName, portGroupType, err)
 	}
 
-	if len(pgs) != 1 {
-		return fmt.Errorf("expected to get exactly one portgroup with name '%s' of type '%s', got %d", portGroupName, portGroupType, len(pgs))
+	if len(pgs) == 0 {
+		return fmt.Errorf("%s: expected to get exactly one portgroup with name '%s' of type '%s', got %d",
+			govcd.ErrorEntityNotFound, portGroupName, portGroupType, len(pgs))
+	}
+
+	if len(pgs) > 1 {
+		return fmt.Errorf("expected to get exactly one portgroup with name '%s' of type '%s', got %d",
+			portGroupName, portGroupType, len(pgs))
 	}
 
 	d.SetId(pgs[0].MoRef)

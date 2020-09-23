@@ -23,6 +23,10 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 	}
 
 	skipNoNsxtConfiguration(t)
+	vcdClient := createTemporaryVCDConnection()
+	if vcdClient.Client.APIVCDMaxVersionIs("< 33.0") {
+		t.Skip(t.Name() + " requires at least API v33.0 (vCD 10+)")
+	}
 
 	startAddress := "192.168.30.51"
 	endAddress := "192.168.30.62"
@@ -222,10 +226,14 @@ output "nsxt-tier0-router" {
 `
 
 func TestAccVcdExternalNetworkV2Nsxv(t *testing.T) {
-
 	if !usingSysAdmin() {
 		t.Skip(t.Name() + " requires system admin privileges")
 		return
+	}
+
+	vcdClient := createTemporaryVCDConnection()
+	if vcdClient.Client.APIVCDMaxVersionIs("< 33.0") {
+		t.Skip(t.Name() + " requires at least API v33.0 (vCD 10+)")
 	}
 
 	startAddress := "192.168.30.51"

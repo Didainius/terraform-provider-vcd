@@ -31,8 +31,11 @@ func testSpecificDataSourceNotFound(t *testing.T, dataSourceName string) func(*t
 	return func(t *testing.T) {
 
 		// Skip sub-test if conditions are not met
-		if dataSourceName == "vcd_external_network" && !usingSysAdmin() {
+		switch {
+		case dataSourceName == "vcd_external_network" && !usingSysAdmin():
 			t.Skip(`Works only with system admin privileges`)
+		case dataSourceName == "vcd_nsxt_tier0_router" && testConfig.Nsxt.Manager == "":
+			t.Skip(`No NSX-T configuration detected`)
 		}
 
 		// Get list of mandatory fields in schema for a particular data source
@@ -100,6 +103,12 @@ func addMandatoryParams(dataSourceName string, mandatoryFields []string, t *test
 		// A special case for DHCP relay where only invalid edge_gateway makes sense
 		if dataSourceName == "vcd_nsxv_dhcp_relay" && mandatoryFields[fieldIndex] == "edge_gateway" {
 			templateFields = templateFields + `edge_gateway = "non-existing"` + "\n"
+			return templateFields
+		}
+
+		//
+		if dataSourceName == "vcd_portgroup" && mandatoryFields[fieldIndex] == "type" {
+			templateFields = templateFields + `type = "` + testConfig.Networking.ExternalNetworkPortGroupType + `"` + "\n"
 			return templateFields
 		}
 

@@ -9,13 +9,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 )
 
-// TestAccVcdDatasourceNsxtManager tests out if
 func TestAccVcdDatasourceNsxtManager(t *testing.T) {
 
 	if !usingSysAdmin() {
 		t.Skip(t.Name() + " requires system admin privileges")
 		return
 	}
+
+	skipNoNsxtConfiguration(t)
 
 	var params = StringMap{
 		"FuncName":    t.Name(),
