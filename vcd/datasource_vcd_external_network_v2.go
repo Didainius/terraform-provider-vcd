@@ -83,5 +83,7 @@ func datasourceVcdExternalNetworkV2Read(d *schema.ResourceData, meta interface{}
 		return fmt.Errorf("could not find external network by name '%s': %s", name, err)
 	}
 
+	d.SetId(extNet.ExternalNetwork.ID)
+
 	return setExternalNetworkV2Data(d, extNet.ExternalNetwork)
 }

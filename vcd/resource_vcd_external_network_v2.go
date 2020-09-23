@@ -416,7 +416,7 @@ func setExternalNetworkV2Data(d *schema.ResourceData, net *types.ExternalNetwork
 	// Switch on first value of backing ID. If it is NSX-T - it can be only one block (limited by schema).
 	// NSX-V can have more than one
 	switch net.NetworkBackings.Values[0].BackingType {
-	case types.ExternalNetworkBackingDvPortgroup, types.ExternalNetworkBackingTypeNetwork:
+	case types.ExternalNetworkBackingDvPortgroup, types.ExternalNetworkBackingTypeNetwork, "PORTGROUP":
 		backingInterface := make([]interface{}, len(net.NetworkBackings.Values))
 		for backingIndex := range net.NetworkBackings.Values {
 			backing := net.NetworkBackings.Values[backingIndex]
@@ -446,6 +446,9 @@ func setExternalNetworkV2Data(d *schema.ResourceData, net *types.ExternalNetwork
 		if err != nil {
 			return fmt.Errorf("error setting 'nsxt_network' block: %s", err)
 		}
+
+	default:
+		return fmt.Errorf("unrecognized network backing type: %s", net.NetworkBackings.Values[0].BackingType)
 	}
 
 	return nil

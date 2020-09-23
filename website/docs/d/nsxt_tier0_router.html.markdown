@@ -35,4 +35,4 @@ The following arguments are supported:
 
 ## Attribute reference
 
-Only ID is set to be able and reference in other resources or data sources.
+* `is_assigned` - Boolean value reflecting if Tier-0 router is already consumed by external network.

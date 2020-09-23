@@ -103,6 +103,12 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 				),
 			},
 			resource.TestStep{
+				ResourceName:      resourceName + "-import",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdTopHierarchy(t.Name()),
+			},
+			resource.TestStep{
 				Config: configText1,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "name", t.Name()),
@@ -122,13 +128,25 @@ func TestAccVcdExternalNetworkV2Nsxt(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "nsxt_network.#", "1"),
 					testCheckMatchOutput("nsxt-manager", regexp.MustCompile("^urn:vcloud:nsxtmanager:.*")),
 					testCheckOutputNonEmpty("nsxt-tier0-router"), // Match any non empty string
+
+					// Data source
+					resource.TestCheckResourceAttrPair(resourceName, "name", "data."+resourceName, "name"),
+					resource.TestCheckResourceAttrPair(resourceName, "description", "data."+resourceName, "description"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.#", "data."+resourceName, "ip_scope.#"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.dns1", "data."+resourceName, "ip_scope.1428757071.dns1"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.dns2", "data."+resourceName, "ip_scope.1428757071.dns2"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.dns_suffix", "data."+resourceName, "ip_scope.1428757071.dns_suffix"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.enabled", "data."+resourceName, "ip_scope.1428757071.enabled"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.gateway", "data."+resourceName, "ip_scope.1428757071.gateway"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.prefix_length", "data."+resourceName, "ip_scope.1428757071.prefix_length"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.static_ip_pool.#", "data."+resourceName, "ip_scope.1428757071.static_ip_pool.#"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.static_ip_pool.1203345861.end_address", "data."+resourceName, "ip_scope.1428757071.static_ip_pool.1203345861.end_address"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.1428757071.static_ip_pool.1203345861.start_address", "data."+resourceName, "ip_scope.1428757071.static_ip_pool.1203345861.start_address"),
+					resource.TestCheckResourceAttrPair(resourceName, "vsphere_network.#", "data."+resourceName, "vsphere_network.#"),
+					resource.TestCheckResourceAttrPair(resourceName, "nsxt_network.#", "data."+resourceName, "nsxt_network.#"),
+					resource.TestMatchResourceAttr("data."+resourceName, "nsxt_network.0.nsxt_manager_id", regexp.MustCompile("^urn:vcloud:nsxtmanager:.*")),
+					resource.TestCheckResourceAttrSet("data."+resourceName, "nsxt_network.0.nsxt_tier0_router_id"),
 				),
-			},
-			resource.TestStep{
-				ResourceName:      resourceName + "-import",
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateIdFunc: importStateIdTopHierarchy(t.Name()),
 			},
 		},
 	})
@@ -214,6 +232,10 @@ resource "vcd_external_network_v2" "ext-net-nsxt" {
   }
 }
 
+data "vcd_external_network_v2" "ext-net-nsxt" {
+	name = vcd_external_network_v2.ext-net-nsxt.name
+}
+
 output "nsxt-manager" {
   value = tolist(vcd_external_network_v2.ext-net-nsxt.nsxt_network)[0].nsxt_manager_id
 }
@@ -292,6 +314,27 @@ func TestAccVcdExternalNetworkV2Nsxv(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "vsphere_network.#", "1"),
 					testCheckOutputNonEmpty("vcenter-id"),   // Match any non empty string
 					testCheckOutputNonEmpty("portgroup-id"), // Match any non empty string
+
+					// Data source checks
+					// stateDumper(),
+					// Ensure datasource has the same values
+					// resourceFieldsEqual(resourceName, "data."+resourceName, []string{}),
+
+					resource.TestCheckResourceAttrPair(resourceName, "name", "data."+resourceName, "name"),
+					resource.TestCheckResourceAttrPair(resourceName, "description", "data."+resourceName, "description"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.#", "data."+resourceName, "ip_scope.#"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.dns1", "data."+resourceName, "ip_scope.2118535427.dns1"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.dns2", "data."+resourceName, "ip_scope.2118535427.dns2"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.dns_suffix", "data."+resourceName, "ip_scope.2118535427.dns_suffix"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.enabled", "data."+resourceName, "ip_scope.2118535427.enabled"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.gateway", "data."+resourceName, "ip_scope.2118535427.gateway"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.prefix_length", "data."+resourceName, "ip_scope.2118535427.prefix_length"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.static_ip_pool.#", "data."+resourceName, "ip_scope.2118535427.static_ip_pool.#"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.static_ip_pool.1203345861.end_address", "data."+resourceName, "ip_scope.2118535427.static_ip_pool.1203345861.end_address"),
+					resource.TestCheckResourceAttrPair(resourceName, "ip_scope.2118535427.static_ip_pool.1203345861.start_address", "data."+resourceName, "ip_scope.2118535427.static_ip_pool.1203345861.start_address"),
+					resource.TestCheckResourceAttrPair(resourceName, "vsphere_network.#", "data."+resourceName, "vsphere_network.#"),
+					resource.TestCheckResourceAttrSet("data."+resourceName, "vsphere_network.0.portgroup_id"),
+					resource.TestCheckResourceAttrSet("data."+resourceName, "vsphere_network.0.vcenter_id"),
 				),
 			},
 			resource.TestStep{
@@ -370,6 +413,10 @@ resource "vcd_external_network_v2" "ext-net-nsxv" {
   }
 }
 
+data "vcd_external_network_v2" "ext-net-nsxv" {
+	name = vcd_external_network_v2.ext-net-nsxv.name
+}
+
 output "vcenter-id" {
   value = tolist(vcd_external_network_v2.ext-net-nsxv.vsphere_network)[0].vcenter_id
 }
@@ -439,39 +486,6 @@ func testAccCheckExternalNetworkDestroyV2(name string) resource.TestCheckFunc {
 			if err == nil {
 				return fmt.Errorf("external network v2 %s still exists", rs.Primary.ID)
 			}
-		}
-
-		return nil
-	}
-}
-
-func testCheckMatchOutput(name string, r *regexp.Regexp) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		ms := s.RootModule()
-		rs, ok := ms.Outputs[name]
-		if !ok {
-			return fmt.Errorf("Not found: %s", name)
-		}
-
-		if !r.MatchString(rs.Value.(string)) {
-			return fmt.Errorf(
-				"Output '%s': expected %#v, got %#v", name, rs.Value, rs)
-		}
-
-		return nil
-	}
-}
-
-func testCheckOutputNonEmpty(name string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		ms := s.RootModule()
-		rs, ok := ms.Outputs[name]
-		if !ok {
-			return fmt.Errorf("Not found: %s", name)
-		}
-
-		if rs.Value.(string) == "" {
-			return fmt.Errorf("Output '%s': expected '', got %#v", name, rs)
 		}
 
 		return nil

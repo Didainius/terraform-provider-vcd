@@ -3,7 +3,7 @@ layout: "vcd"
 page_title: "VMware Cloud Director: vcd_external_network_v2"
 sidebar_current: "docs-vcd-resource-external-network-v2"
 description: |-
-  Provides a VMware Cloud Director External Network resource (version 2). New version of this resource 
+  Provides a VMware Cloud Director External Network resource (version 2). New version of this resource
   uses new VCD API and is capable of creating NSX-T backed external networks as well as port group
   backed ones.
 ---
@@ -156,7 +156,7 @@ For example, using this structure, representing an existing external network tha
 
 ```hcl
 resource "vcd_external_network_v2" "tf-external-network" {
-  name             = "my-ext-net"
+  name = "my-ext-net"
 }
 ```
 

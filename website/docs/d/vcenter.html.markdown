@@ -3,12 +3,12 @@ layout: "vcd"
 page_title: "VMware Cloud Director: vcd_vcenter"
 sidebar_current: "docs-vcd-data-source-vcenter"
 description: |-
-  Provides a data source for vCenter server.
+  Provides a data source for vCenter server attached to VCD.
 ---
 
 # vcd\_vcenter
 
-Provides a data source for vCenter server.
+Provides a data source for vCenter server attached to VCD.
 
 Supported in provider *v3.0+*
 
