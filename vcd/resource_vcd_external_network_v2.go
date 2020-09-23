@@ -145,7 +145,6 @@ func resourceVcdExternalNetworkV2() *schema.Resource {
 			"vsphere_network": &schema.Schema{
 				Type:         schema.TypeSet,
 				Optional:     true,
-				ExactlyOneOf: []string{"vsphere_network", "nsxt_network"},
 				AtLeastOneOf: []string{"vsphere_network", "nsxt_network"},
 				ForceNew:     true,
 				Description:  "A list of port groups that back this network. Each referenced DV_PORTGROUP or NETWORK must exist on a vCenter server registered with the system.",
@@ -154,7 +153,6 @@ func resourceVcdExternalNetworkV2() *schema.Resource {
 			"nsxt_network": &schema.Schema{
 				Type:         schema.TypeSet,
 				Optional:     true,
-				ExactlyOneOf: []string{"vsphere_network", "nsxt_network"},
 				AtLeastOneOf: []string{"vsphere_network", "nsxt_network"},
 				MaxItems:     1,
 				ForceNew:     true,
@@ -212,7 +210,7 @@ func resourceVcdExternalNetworkV2Update(d *schema.ResourceData, meta interface{}
 
 func resourceVcdExternalNetworkV2Read(d *schema.ResourceData, meta interface{}) error {
 	vcdClient := meta.(*VCDClient)
-	log.Printf("[TRACE] external network V2 creation initiated")
+	log.Printf("[TRACE] external network V2 read initiated")
 
 	extNet, err := govcd.GetExternalNetworkV2ById(vcdClient.VCDClient, d.Id())
 	if govcd.ContainsNotFound(err) {
