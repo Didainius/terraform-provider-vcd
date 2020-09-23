@@ -37,8 +37,7 @@ func datasourceVcdNsxtTier0Router() *schema.Resource {
 // endpoint `1.0.0/nsxTResources/importableTier0Routers` does not return Tier-0 routers when they are used in external
 // networks. This causes a problem in regular Terraform flow - when user uses this datasource to reference Tier-0 router
 // for external network creation - next "apply" would fail with "Tier 0 router not found error". This datasource queries
-// all defined external networks and looks for Tier-0 router backing by name. Note. This does not look to have problems,
-// but may cause some issues because of custom permissions where user cannot access external networks.
+// all defined external networks and looks for Tier-0 router backing by name.
 func datasourceNsxtTier0RouterRead(d *schema.ResourceData, meta interface{}) error {
 	vcdClient := meta.(*VCDClient)
 	nsxtManagerId := d.Get("nsxt_manager_id").(string)
@@ -77,5 +76,5 @@ func datasourceNsxtTier0RouterRead(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
-	return nil
+	return govcd.ErrorEntityNotFound
 }
