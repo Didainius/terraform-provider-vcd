@@ -351,9 +351,6 @@ func getSubnetsType(d *schema.ResourceData) []types.ExternalNetworkV2Subnet {
 			DNSServer2:   subnetMap["dns2"].(string),
 			PrefixLength: subnetMap["prefix_length"].(int),
 			Enabled:      subnetMap["enabled"].(bool),
-			// IPRanges:     types.ExternalNetworkV2IPRanges{},
-			// UsedIPCount:  0,
-			// TotalIPCount: 0,
 		}
 		// Loop over IP ranges (static IP pools)
 		subnet.IPRanges = types.ExternalNetworkV2IPRanges{Values: processIpRanges(subnetMap)}
