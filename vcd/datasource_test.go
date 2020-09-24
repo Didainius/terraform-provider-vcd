@@ -21,20 +21,27 @@ func TestAccDataSourceNotFound(t *testing.T) {
 		return
 	}
 
+	// Setup temporary client to evaluate versions and conditionally skip tests
+	vcdClient := createTemporaryVCDConnection()
+
 	// Run a sub-test for each of data source defined in provider
 	for _, dataSource := range Provider().DataSources() {
-		t.Run(dataSource.Name, testSpecificDataSourceNotFound(t, dataSource.Name))
+		t.Run(dataSource.Name, testSpecificDataSourceNotFound(t, dataSource.Name, vcdClient))
 	}
 }
 
-func testSpecificDataSourceNotFound(t *testing.T, dataSourceName string) func(*testing.T) {
+func testSpecificDataSourceNotFound(t *testing.T, dataSourceName string, vcdClient *VCDClient) func(*testing.T) {
 	return func(t *testing.T) {
 
 		// Skip sub-test if conditions are not met
 		switch {
 		case dataSourceName == "vcd_external_network" && !usingSysAdmin():
 			t.Skip(`Works only with system admin privileges`)
-		case dataSourceName == "vcd_nsxt_tier0_router" && testConfig.Nsxt.Manager == "":
+		case dataSourceName == "vcd_external_network_v2" && vcdClient.Client.APIVCDMaxVersionIs("< 33") &&
+			!usingSysAdmin():
+			t.Skip("External network V2 requires at least API version 33 (VCD 10.0+)")
+		case (dataSourceName == "vcd_nsxt_tier0_router" || dataSourceName == "vcd_external_network_v2" || dataSourceName == "vcd_nsxt_manager") &&
+			(testConfig.Nsxt.Manager == "" || testConfig.Nsxt.Tier0router == "") || !usingSysAdmin():
 			t.Skip(`No NSX-T configuration detected`)
 		}
 
@@ -106,7 +113,7 @@ func addMandatoryParams(dataSourceName string, mandatoryFields []string, t *test
 			return templateFields
 		}
 
-		//
+		// vcd_portgroup requires portgroup  type
 		if dataSourceName == "vcd_portgroup" && mandatoryFields[fieldIndex] == "type" {
 			templateFields = templateFields + `type = "` + testConfig.Networking.ExternalNetworkPortGroupType + `"` + "\n"
 			return templateFields

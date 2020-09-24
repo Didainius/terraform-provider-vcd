@@ -21,13 +21,13 @@ func datasourceVcdPortgroup() *schema.Resource {
 			"type": &schema.Schema{
 				Type:         schema.TypeString,
 				Required:     true,
-				Description:  "ID of NSX-T manager.",
+				Description:  "Portgroup type. One of 'NETWORK', 'DV_PORTGROUP'",
 				ValidateFunc: validation.StringInSlice([]string{types.ExternalNetworkBackingTypeNetwork, types.ExternalNetworkBackingDvPortgroup}, false),
 			},
 			"vcenter_id": &schema.Schema{
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "ID of NSX-T manager.",
+				Description: "vCenter ID.",
 			},
 		},
 	}

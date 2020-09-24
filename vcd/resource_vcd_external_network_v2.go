@@ -321,7 +321,7 @@ func getPortGroupTypeById(vcdClient *VCDClient, portGroupId, vCenterId string) (
 	var pgType string
 
 	// Lookup portgroup_type
-	pgs, err := govcd.QueryPortGroups(vcdClient.VCDClient, "")
+	pgs, err := govcd.QueryPortGroups(vcdClient.VCDClient, "moref=="+portGroupId)
 	if err != nil {
 		return "", fmt.Errorf("error validating portgroup '%s' type: %s", portGroupId, err)
 	}

@@ -1,4 +1,4 @@
-// +build vapp vm user ALL functional
+// +build vapp vm user nsxt ALL functional
 
 package vcd
 

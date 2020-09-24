@@ -29,9 +29,13 @@ func datasourceNsxtManagerRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("could not find NSX-T manager by name '%s': %s", nsxtManagerName, err)
 	}
 
-	if len(nsxtManager) != 1 {
+	if len(nsxtManager) == 0 {
 		return fmt.Errorf("%s found %d NSX-T managers with name '%s'",
 			govcd.ErrorEntityNotFound, len(nsxtManager), nsxtManagerName)
+	}
+
+	if len(nsxtManager) > 1 {
+		return fmt.Errorf("found %d NSX-T managers with name '%s'", len(nsxtManager), nsxtManagerName)
 	}
 
 	id := extractUuid(nsxtManager[0].HREF)
