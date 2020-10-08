@@ -3,6 +3,10 @@ package vcd
 import (
 	"fmt"
 	"log"
+	"strings"
+
+	"github.com/vmware/go-vcloud-director/v2/govcd"
+	"github.com/vmware/go-vcloud-director/v2/types/v56"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
@@ -117,31 +121,9 @@ func resourceVcdNsxtEdgeGatewayCreate(d *schema.ResourceData, meta interface{}) 
 	log.Printf("[TRACE] edge gateway creation initiated")
 
 	vcdClient := meta.(*VCDClient)
-
-	// Making sure the parent entities are available
-	orgName := vcdClient.getOrgName(d)
-	vdcName := vcdClient.getVdcName(d)
-
-	var missing []string
-	if orgName == "" {
-		missing = append(missing, "org")
-	}
-	if vdcName == "" {
-		missing = append(missing, "vdc")
-	}
-	if len(missing) > 0 {
-		return fmt.Errorf("missing properties. %v should be given either in the resource or at provider level", missing)
-	}
-
-	org, vdc, err := vcdClient.GetOrgAndVdc(orgName, vdcName)
+	_, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
-		return err
-	}
-	if org == nil {
-		return fmt.Errorf("no valid Organization named '%s' was found", orgName)
-	}
-	if vdc == nil || vdc.Vdc.HREF == "" || vdc.Vdc.ID == "" || vdc.Vdc.Name == "" {
-		return fmt.Errorf("no valid VDC named '%s' was found", vdcName)
+		return fmt.Errorf("error retrieving VDC: %s", err)
 	}
 
 	adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
@@ -149,7 +131,15 @@ func resourceVcdNsxtEdgeGatewayCreate(d *schema.ResourceData, meta interface{}) 
 		return fmt.Errorf("error getting adminOrg: %s", err)
 	}
 
-	adminOrg.CreateNsxtEdgeGateway()
+	t, err := getNsxtEdgeGatewayType(d, vdc)
+	if err != nil {
+		return fmt.Errorf("could not create edge gateway type: %s", err)
+	}
+
+	_, err = adminOrg.CreateNsxtEdgeGateway(t)
+	if err != nil {
+		return fmt.Errorf("error creating edge gateway: %s", err)
+	}
 
 	return nil
 }
@@ -159,10 +149,29 @@ func resourceVcdNsxtEdgeGatewayUpdate(d *schema.ResourceData, meta interface{}) 
 	log.Printf("[TRACE] edge gateway update initiated")
 
 	vcdClient := meta.(*VCDClient)
-	vdcName := vcdClient.getVdcName(d)
-	vdc, err := vcdClient.getVdc(vdcName)
+	_, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
-		return fmt.Errorf("could not get VDC '%s': %s", vdcName, err)
+		return fmt.Errorf("error retrieving VDC: %s", err)
+	}
+
+	adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+	if err != nil {
+		return fmt.Errorf("error getting adminOrg: %s", err)
+	}
+
+	edge, err := adminOrg.GetNsxtEdgeGatewayById(d.Id())
+	if err != nil {
+		return fmt.Errorf("could not retrieve edge gateway: %s", err)
+	}
+
+	edge.EdgeGateway, err = getNsxtEdgeGatewayType(d, vdc)
+	if err != nil {
+		return fmt.Errorf("error creating edge gateway type: %s", err)
+	}
+
+	_, err = edge.Update(edge.EdgeGateway)
+	if err != nil {
+		return fmt.Errorf("error updating edge gateway with ID '%s': %s", d.Id(), err)
 	}
 
 	return nil
@@ -173,12 +182,25 @@ func resourceVcdNsxtEdgeGatewayRead(d *schema.ResourceData, meta interface{}) er
 	log.Printf("[TRACE] edge gateway read initiated")
 
 	vcdClient := meta.(*VCDClient)
-	vdcName := vcdClient.getVdcName(d)
-	vdc, err := vcdClient.getVdc(vdcName)
+	// _, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
+	// if err != nil {
+	// 	return fmt.Errorf("error retrieving VDC: %s", err)
+	// }
+
+	adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
 	if err != nil {
-		return fmt.Errorf("could not get VDC '%s': %s", vdcName, err)
+		return fmt.Errorf("error getting adminOrg: %s", err)
 	}
 
+	edge, err := adminOrg.GetNsxtEdgeGatewayById(d.Id())
+	if err != nil {
+		return fmt.Errorf("could not retrieve edge gateway: %s", err)
+	}
+
+	err = setNsxtEdgeGatewayData(edge.EdgeGateway, d)
+	if err != nil {
+		return fmt.Errorf("error reading edge gateway data: %s", err)
+	}
 	return nil
 }
 
@@ -187,10 +209,24 @@ func resourceVcdNsxtEdgeGatewayDelete(d *schema.ResourceData, meta interface{}) 
 	log.Printf("[TRACE] edge gateway deletion initiated")
 
 	vcdClient := meta.(*VCDClient)
-	vdcName := vcdClient.getVdcName(d)
-	vdc, err := vcdClient.getVdc(vdcName)
+	// _, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
+	// if err != nil {
+	// 	return fmt.Errorf("error retrieving VDC: %s", err)
+	// }
+
+	adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
 	if err != nil {
-		return fmt.Errorf("could not get VDC '%s': %s", vdcName, err)
+		return fmt.Errorf("error getting adminOrg: %s", err)
+	}
+
+	edge, err := adminOrg.GetNsxtEdgeGatewayById(d.Id())
+	if err != nil {
+		return fmt.Errorf("could not retrieve edge gateway: %s", err)
+	}
+
+	err = edge.Delete()
+	if err != nil {
+		return fmt.Errorf("error deleting edge gateway: %s", err)
 	}
 
 	return nil
@@ -200,12 +236,57 @@ func resourceVcdNsxtEdgeGatewayDelete(d *schema.ResourceData, meta interface{}) 
 func resourceVcdNsxtEdgeGatewayImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	log.Printf("[TRACE] edge gateway import initiated")
 
+	resourceURI := strings.Split(d.Id(), ImportSeparator)
+	if len(resourceURI) != 3 {
+		return nil, fmt.Errorf("resource name must be specified as org-name.vdc-name.edge-gw-name (or edge-gw-ID)")
+	}
+	orgName, _, edgeName := resourceURI[0], resourceURI[1], resourceURI[2]
+
 	vcdClient := meta.(*VCDClient)
-	vdcName := vcdClient.getVdcName(d)
-	vdc, err := vcdClient.getVdc(vdcName)
+	adminOrg, err := vcdClient.GetAdminOrg(orgName)
 	if err != nil {
-		return nil, fmt.Errorf("could not get VDC '%s': %s", vdcName, err)
+		return nil, fmt.Errorf("unable to find org %s: %s", orgName, err)
+	}
+	// vdc, err := adminOrg.GetVDCByName(vdcName, false)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("unable to find VDC %s: %s", vdcName, err)
+	// }
+
+	edge, err := adminOrg.GetNsxtEdgeGatewayByName(edgeName)
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve edge gateway with ID '%s': %s", d.Id(), err)
 	}
 
+	d.SetId(edge.EdgeGateway.ID)
+
 	return []*schema.ResourceData{d}, nil
+}
+
+// getNsxtEdgeGatewayType
+func getNsxtEdgeGatewayType(d *schema.ResourceData, vdc *govcd.Vdc) (*types.NsxtEdgeGateway, error) {
+
+	e := types.NsxtEdgeGateway{
+		// Status:      "",
+		// ID:          "",
+		Name:        d.Get("name").(string),
+		Description: d.Get("description").(string),
+		OrgVdc: struct {
+			ID string `json:"id"`
+		}{ID: vdc.Vdc.ID},
+		EdgeGatewayUplinks: nil,
+	}
+	//
+	// t, err := getNsxtEdgeGatewayType(d, vdc)
+	// if err != nil {
+	// 	return fmt.Errorf("could not create edge gateway type: %s", err)
+	// }
+	//
+	// _, err = adminOrg.UpdateNsxtEdgeGateway(t)
+
+	return &e, nil
+}
+
+// setNsxtEdgeGatewayData
+func setNsxtEdgeGatewayData(e *types.NsxtEdgeGateway, d *schema.ResourceData) error {
+	return nil
 }
