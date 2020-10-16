@@ -45,7 +45,6 @@ The following fields were removed from resources in *v3.0*:
 *  `resource/vcd_nsxv_firewall_rule.virtual_machine_ids` renamed to `vm_ids`
 *  `resource/vcd_vm_affinity_rule.virtual_machine_ids` renamed to `vm_ids` 
 
-
 ## Example Usage
 
 ### Connecting as Org Admin

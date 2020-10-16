@@ -11,6 +11,76 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
+var externalNetworkResource2 = &schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"external_network_id": {
+			Required:    true,
+			ForceNew:    true,
+			Type:        schema.TypeString,
+			Description: "External network name",
+		},
+
+		"subnet": {
+			Optional: true,
+			Computed: true,
+			ForceNew: true,
+			Type:     schema.TypeSet,
+			MinItems: 1,
+			Elem:     subnetResource2,
+		},
+	},
+}
+
+var subnetResource2 = &schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"gateway": {
+			Required:    true,
+			ForceNew:    true,
+			Description: "Gateway address for a subnet",
+			Type:        schema.TypeString,
+		},
+		"prefix_length": {
+			Required:    true,
+			ForceNew:    true,
+			Description: "Netmask address for a subnet",
+			Type:        schema.TypeString,
+		},
+		"ip_address": {
+			Optional:    true,
+			Type:        schema.TypeString,
+			ForceNew:    true,
+			Description: "IP address on the edge gateway - will be auto-assigned if not defined",
+		},
+		"use_for_default_route": {
+			Optional:    true,
+			Default:     false,
+			ForceNew:    true,
+			Type:        schema.TypeBool,
+			Description: "Defines if this subnet should be used as default gateway for edge",
+		},
+		"suballocate_pool": {
+			Optional:    true,
+			Type:        schema.TypeSet,
+			ForceNew:    true,
+			Description: "Define zero or more blocks to sub-allocate pools on the edge gateway",
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"start_address": {
+						Required: true,
+						Type:     schema.TypeString,
+						ForceNew: true,
+					},
+					"end_address": {
+						Required: true,
+						Type:     schema.TypeString,
+						ForceNew: true,
+					},
+				},
+			},
+		},
+	},
+}
+
 func resourceVcdNsxtEdgeGateway() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceVcdNsxtEdgeGatewayCreate,
@@ -50,61 +120,12 @@ func resourceVcdNsxtEdgeGateway() *schema.Resource {
 				Optional:    true,
 				Description: "Dedicating the External Network will enable Route Advertisement for this Edge Gateway.",
 			},
-			"subnets": {
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-				Type:     schema.TypeSet,
-				MinItems: 1,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"gateway": {
-							Required:    true,
-							ForceNew:    true,
-							Description: "Gateway address for a subnet",
-							Type:        schema.TypeString,
-						},
-						"prefix_length": {
-							Required:    true,
-							ForceNew:    true,
-							Description: "Netmask address for a subnet",
-							Type:        schema.TypeString,
-						},
-						"ip_address": {
-							Optional:    true,
-							Type:        schema.TypeString,
-							ForceNew:    true,
-							Description: "IP address on the edge gateway - will be auto-assigned if not defined",
-						},
-						"use_for_default_route": {
-							Optional:    true,
-							Default:     false,
-							ForceNew:    true,
-							Type:        schema.TypeBool,
-							Description: "Defines if this subnet should be used as default gateway for edge",
-						},
-						"suballocate_pool": {
-							Optional:    true,
-							Type:        schema.TypeSet,
-							ForceNew:    true,
-							Description: "Define zero or more blocks to sub-allocate pools on the edge gateway",
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"start_address": {
-										Required: true,
-										Type:     schema.TypeString,
-										ForceNew: true,
-									},
-									"end_address": {
-										Required: true,
-										Type:     schema.TypeString,
-										ForceNew: true,
-									},
-								},
-							},
-						},
-					},
-				},
+			"external_network": {
+				Description: "One or more blocks with external network information to be attached to this gateway's interface",
+				ForceNew:    true,
+				Required:    true,
+				Type:        schema.TypeSet,
+				Elem:        externalNetworkResource2,
 			},
 			"edge_cluster_id": &schema.Schema{
 				// TODO datasource - `vcd_nsxt_edge_cluster`
@@ -266,15 +287,37 @@ func resourceVcdNsxtEdgeGatewayImport(d *schema.ResourceData, meta interface{}) 
 func getNsxtEdgeGatewayType(d *schema.ResourceData, vdc *govcd.Vdc) (*types.NsxtEdgeGateway, error) {
 
 	e := types.NsxtEdgeGateway{
-		// Status:      "",
-		// ID:          "",
-		Name:        d.Get("name").(string),
-		Description: d.Get("description").(string),
-		OrgVdc: struct {
-			ID string `json:"id"`
-		}{ID: vdc.Vdc.ID},
-		EdgeGatewayUplinks: nil,
+		// Status:                    "",
+		// ID:                        "",
+		Name:                      d.Get("name").(string),
+		Description:               d.Get("description").(string),
+		DistributedRoutingEnabled: true, // ???NSX-T is always distributed???
+		EdgeGatewayUplinks: []types.EdgeGatewayUplinks{types.EdgeGatewayUplinks{
+			UplinkID:                 "",
+			UplinkName:               "",
+			Subnets:                  types.NsxtSubnets{},
+			Connected:                false,
+			QuickAddAllocatedIPCount: nil,
+			Dedicated:                false,
+		}},
+		// OrgVdcNetworkCount:        0,
+		GatewayBacking: types.GatewayBacking{},
+		OrgVdc:         types.OrgVdc{},
+		OrgRef:         types.OrgRef{},
+		// ServiceNetworkDefinition:  "",
+		// EdgeClusterConfig:         types.EdgeClusterConfig{},
 	}
+
+	// e := types.NsxtEdgeGateway{
+	// 	// Status:      "",
+	// 	// ID:          "",
+	// 	Name:        d.Get("name").(string),
+	// 	Description: d.Get("description").(string),
+	// 	// OrgVdc: struct {
+	// 	// 	ID string `json:"id"`
+	// 	// }{ID: vdc.Vdc.ID},
+	// 	// EdgeGatewayUplinks: nil,
+	// }
 	//
 	// t, err := getNsxtEdgeGatewayType(d, vdc)
 	// if err != nil {
