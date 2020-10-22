@@ -358,18 +358,18 @@ func TestAccVcdNsxvEdgeFirewallRule(t *testing.T) {
 					resource.TestCheckResourceAttr("vcd_nsxv_firewall_rule.rule5", "service.1.source_port", "any"),
 				),
 			},
-			resource.TestStep{ // Step 6 - resource import by real ID
-				ResourceName:      "vcd_nsxv_firewall_rule.imported",
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateIdFunc: importStateIdByResourceName("vcd_nsxv_firewall_rule.rule5"),
-			},
-			resource.TestStep{ // Step 7 - resource import by UI Number
-				ResourceName:      "vcd_nsxv_firewall_rule.imported",
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateIdFunc: importStateFirewallUiNumberByResourceName("vcd_nsxv_firewall_rule.rule5"),
-			},
+			// resource.TestStep{ // Step 6 - resource import by real ID
+			// 	ResourceName:      "vcd_nsxv_firewall_rule.imported",
+			// 	ImportState:       true,
+			// 	ImportStateVerify: true,
+			// 	ImportStateIdFunc: importStateIdByResourceName("vcd_nsxv_firewall_rule.rule5"),
+			// },
+			// resource.TestStep{ // Step 7 - resource import by UI Number
+			// 	ResourceName:      "vcd_nsxv_firewall_rule.imported",
+			// 	ImportState:       true,
+			// 	ImportStateVerify: true,
+			// 	ImportStateIdFunc: importStateFirewallUiNumberByResourceName("vcd_nsxv_firewall_rule.rule5"),
+			// },
 			resource.TestStep{ // Step 8 - two rules - one above another
 				Config: configText8,
 				Check: resource.ComposeAggregateTestCheckFunc(
