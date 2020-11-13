@@ -121,6 +121,7 @@ type TestConfig struct {
 		Manager        string `json:"manager"`
 		Tier0router    string `json:"tier0router"`
 		Tier0routerVrf string `json:"tier0routervrf"`
+		Vdc            string `json:"vdc"`
 	} `json:"nsxt"`
 	Logging struct {
 		Enabled         bool   `json:"enabled,omitempty"`
