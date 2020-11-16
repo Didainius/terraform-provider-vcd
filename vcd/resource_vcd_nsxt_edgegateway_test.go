@@ -50,6 +50,12 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 				Config: configText,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", "nsxt-edge"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*", map[string]string{
+						"enabled":       "true",
+						"gateway":       "10.150.191.253",
+						"prefix_length": "19",
+						"primary_ip":    "10.150.160.137",
+					}),
 					// resource.TestMatchResourceAttr("vcd_edgegateway.nsxt-edge", "name", ipV4Regex),
 				),
 			},
@@ -85,14 +91,18 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   description             = "Description"
 #  edge_cluster_id         = data.vcd_nsxt_edge_cluster.ec.id
 
-  nsxt_manager_id     = data.vcd_nsxt_manager.main.id
+  #nsxt_manager_id     = data.vcd_nsxt_manager.main.id
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
   subnet {
-     ip_address            = "10.150.160.137"
      gateway               = "10.150.191.253"
      prefix_length         = "19"
-     use_for_default_route = true
+     primary_ip            = "10.150.160.137"
+     allocated_ips {
+       start_address = "10.150.160.137"
+       end_address   = "10.150.160.137"
+     }
+     # use_for_default_route = true
   }
 }
 `

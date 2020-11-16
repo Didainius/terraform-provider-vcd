@@ -5,64 +5,55 @@ import (
 	"log"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
-var subnetResource2 = &schema.Resource{
+var nsxtEdgeSubnetRange = &schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"start_address": {
+			Required: true,
+			Type:     schema.TypeString,
+		},
+		"end_address": {
+			Required: true,
+			Type:     schema.TypeString,
+		},
+	},
+}
+
+var nsxtEdgeSubnet = &schema.Resource{
 	Schema: map[string]*schema.Schema{
 		"gateway": {
 			Required:    true,
-			ForceNew:    true,
 			Description: "Gateway address for a subnet",
 			Type:        schema.TypeString,
 		},
 		"prefix_length": {
 			Required:    true,
-			ForceNew:    true,
-			Description: "Netmask address for a subnet (e.g. /24)",
+			Description: "Netmask address for a subnet (e.g. 24 for /24)",
 			Type:        schema.TypeInt,
 		},
 		"enabled": {
-			Optional: true,
-			Default:  true,
-			// ForceNew:    true,
-			Description: "",
+			Optional:    true,
+			Default:     true,
+			Description: "Specifies if the subnet is enabled",
 			Type:        schema.TypeBool,
 		},
-		"ip_address": {
+		"primary_ip": {
 			Optional:    true,
 			Type:        schema.TypeString,
-			ForceNew:    true,
 			Description: "IP address on the edge gateway - will be auto-assigned if not defined",
-		},
-		"use_for_default_route": {
-			Optional:    true,
-			Default:     false,
-			ForceNew:    true,
-			Type:        schema.TypeBool,
-			Description: "Defines if this subnet should be used as default gateway for edge",
 		},
 		"allocated_ips": {
 			Optional:    true,
+			Computed:    true,
 			Type:        schema.TypeSet,
-			ForceNew:    true,
 			Description: "Define zero or more blocks to sub-allocate pools on the edge gateway",
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"start_address": {
-						Required: true,
-						Type:     schema.TypeString,
-						ForceNew: true,
-					},
-					"end_address": {
-						Required: true,
-						Type:     schema.TypeString,
-						ForceNew: true,
-					},
-				},
-			},
+			Elem:        nsxtEdgeSubnetRange,
 		},
 	},
 }
@@ -111,21 +102,21 @@ func resourceVcdNsxtEdgeGateway() *schema.Resource {
 				Required:    true,
 				Description: "External network ID",
 			},
-			"nsxt_manager_id": &schema.Schema{
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "NSX-T manager ID",
-			},
 			"subnet": {
 				Description: "One or more blocks with external network information to be attached to this gateway's interface",
-				ForceNew:    true,
 				Required:    true,
 				Type:        schema.TypeSet,
-				Elem:        subnetResource2,
+				Elem:        nsxtEdgeSubnet,
+			},
+			"primary_ip": {
+				Computed:    true,
+				Type:        schema.TypeString,
+				Description: "Primary IP address of edge gateway. Read-only (can be specified in specific subnet)",
 			},
 			"edge_cluster_id": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
+				Computed:    true,
 				Description: "Select specific NSX-T Edge Cluster. Will be inherited from external network if not specified",
 			},
 		},
@@ -283,14 +274,15 @@ func resourceVcdNsxtEdgeGatewayImport(d *schema.ResourceData, meta interface{}) 
 // getNsxtEdgeGatewayType
 func getNsxtEdgeGatewayType(d *schema.ResourceData, adminOrg *govcd.AdminOrg, vdc *govcd.Vdc) (*types.OpenAPIEdgeGateway, error) {
 
+	spew.Dump(d.Get("subnet"))
+
 	e := types.OpenAPIEdgeGateway{
 		Name:        d.Get("name").(string),
 		Description: d.Get("description").(string),
-		// DistributedRoutingEnabled: true, // ???NSX-T is always distributed???
+		// DistributedRoutingEnabled: true,
 		EdgeGatewayUplinks: []types.EdgeGatewayUplinks{types.EdgeGatewayUplinks{
 			UplinkID: d.Get("external_network_id").(string),
-			// UplinkName:               "",
-			Subnets: types.EdgeGatewaySubnets{getNsxtEdgeGatewayUplinks(d)},
+			Subnets:  types.EdgeGatewaySubnets{getNsxtEdgeGatewayUplinksType(d)},
 			// Connected:                false,
 			// QuickAddAllocatedIPCount: nil,
 			Dedicated: d.Get("dedicate_external_network").(bool),
@@ -322,33 +314,35 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, adminOrg *govcd.AdminOrg, vd
 	return &e, nil
 }
 
-func getNsxtEdgeGatewayUplinks(d *schema.ResourceData) []types.EdgeGatewaySubnetValue {
+// getNsxtEdgeGatewayUplinksType
+func getNsxtEdgeGatewayUplinksType(d *schema.ResourceData) []types.EdgeGatewaySubnetValue {
 	extNetworks := d.Get("subnet").(*schema.Set).List()
 	subnetSlice := make([]types.EdgeGatewaySubnetValue, len(extNetworks))
 
 	for index, singleSubnet := range extNetworks {
 		subnetMap := singleSubnet.(map[string]interface{})
-		subn := types.EdgeGatewaySubnetValue{
+		singleSubnet := types.EdgeGatewaySubnetValue{
 			Gateway:      subnetMap["gateway"].(string),
 			PrefixLength: subnetMap["prefix_length"].(int),
 			Enabled:      subnetMap["enabled"].(bool),
+			PrimaryIP:    subnetMap["primary_ip"].(string),
 			// TotalIPCount:         0,
 			// UsedIPCount:          nil,
-			// PrimaryIP:            "",
 			// AutoAllocateIPRanges: false,
 		}
 		// Only feed in ip range allocations if they are defined
-		if ipRanges := getNsxtEdgeGatewayUplinkRanges(subnetMap); ipRanges != nil {
-			subn.IPRanges = &types.OpenApiIPRanges{ipRanges}
+		if ipRanges := getNsxtEdgeGatewayUplinkRangeTypes(subnetMap); ipRanges != nil {
+			singleSubnet.IPRanges = &types.OpenApiIPRanges{ipRanges}
 		}
 
-		subnetSlice[index] = subn
+		subnetSlice[index] = singleSubnet
 	}
 
 	return subnetSlice
 }
 
-func getNsxtEdgeGatewayUplinkRanges(subnetMap map[string]interface{}) []types.OpenApiIPRangeValues {
+// getNsxtEdgeGatewayUplinkRangeTypes
+func getNsxtEdgeGatewayUplinkRangeTypes(subnetMap map[string]interface{}) []types.OpenApiIPRangeValues {
 	suballocatePoolSchema := subnetMap["allocated_ips"].(*schema.Set)
 	subnetRanges := make([]types.OpenApiIPRangeValues, len(suballocatePoolSchema.List()))
 
@@ -369,5 +363,55 @@ func getNsxtEdgeGatewayUplinkRanges(subnetMap map[string]interface{}) []types.Op
 
 // setNsxtEdgeGatewayData
 func setNsxtEdgeGatewayData(e *types.OpenAPIEdgeGateway, d *schema.ResourceData) error {
+
+	_ = d.Set("name", e.Name)
+	_ = d.Set("description", e.Description)
+	_ = d.Set("edge_cluster_id", e.EdgeClusterConfig.PrimaryEdgeCluster.BackingID)
+	if len(e.EdgeGatewayUplinks) < 1 {
+		return fmt.Errorf("no edge gateway uplinks detected during read")
+	}
+
+	// NSX-T edge gateways support only 1 uplink
+	edgeUplink := e.EdgeGatewayUplinks[0]
+
+	_ = d.Set("dedicate_external_network", edgeUplink.Dedicated)
+	_ = d.Set("external_network_id", edgeUplink.UplinkID)
+
+	// subnets
+	subnets := make([]interface{}, len(edgeUplink.Subnets.Values))
+	for subnetIndex, subnetValue := range edgeUplink.Subnets.Values {
+		oneSubnet := make(map[string]interface{})
+
+		oneSubnet["gateway"] = subnetValue.Gateway
+		oneSubnet["prefix_length"] = subnetValue.PrefixLength
+		oneSubnet["enabled"] = subnetValue.Enabled
+		oneSubnet["primary_ip"] = subnetValue.PrimaryIP
+
+		// Check for allocated IPs
+		ipRangeCount := len(subnetValue.IPRanges.Values)
+		if ipRangeCount > 0 {
+			allIpRanges := make([]interface{}, ipRangeCount)
+			for ipRangeIndex, ipRangeValue := range subnetValue.IPRanges.Values {
+				oneIpRange := make(map[string]interface{})
+				oneIpRange["start_address"] = ipRangeValue.StartAddress
+				oneIpRange["end_address"] = ipRangeValue.EndAddress
+
+				allIpRanges[ipRangeIndex] = oneIpRange
+			}
+
+			ipRangeSet := schema.NewSet(schema.HashResource(nsxtEdgeSubnetRange), allIpRanges)
+			oneSubnet["allocated_ips"] = ipRangeSet
+		}
+		subnets[subnetIndex] = oneSubnet
+	}
+
+	subnetSet := schema.NewSet(schema.HashResource(nsxtEdgeSubnet), subnets)
+
+	spew.Dump(subnetSet)
+	err := d.Set("subnet", subnetSet)
+	if err != nil {
+		return fmt.Errorf("error setting subnets after read: %s", err)
+	}
+
 	return nil
 }
