@@ -24,9 +24,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/util"
 )
@@ -82,9 +82,10 @@ type TestConfig struct {
 		Org         string `json:"org"`
 		Vdc         string `json:"vdc"`
 		ProviderVdc struct {
-			Name           string `json:"name"`
-			NetworkPool    string `json:"networkPool"`
-			StorageProfile string `json:"storageProfile"`
+			Name            string `json:"name"`
+			NetworkPool     string `json:"networkPool"`
+			StorageProfile  string `json:"storageProfile"`
+			StorageProfile2 string `json:"storageProfile2"`
 		} `json:"providerVdc"`
 		NsxtProviderVdc struct {
 			Name           string `json:"name"`
@@ -154,7 +155,6 @@ type TestConfig struct {
 		Dns2                         string `json:"dns2"`                         // DNS 2 for external network
 		ExternalNetworkPortGroup     string `json:"externalNetworkPortGroup"`     // port group, if different from Networking.ExternalNetworkPortGroup
 		ExternalNetworkPortGroupType string `json:"externalNetworkPortGroupType"` // port group type, if different from Networking.ExternalNetworkPortGroupType
-		StorageProfile2              string `json:"storageProfile2"`              // Second storage profile for VDC
 		RoutedNetwork                string `json:"routedNetwork"`                // optional routed network name to create
 		IsolatedNetwork              string `json:"isolatedNetwork"`              // optional isolated network name to create
 		DirectNetwork                string `json:"directNetwork"`                // optional direct network name to create
@@ -636,9 +636,11 @@ func TestMain(m *testing.M) {
 
 		fmt.Printf("as user %s@%s (using %s)\n", testConfig.Provider.User, testConfig.Provider.SysOrg, authentication)
 		// Provider initialization moved here from provider_test.init
-		testAccProvider = Provider().(*schema.Provider)
-		testAccProviders = map[string]terraform.ResourceProvider{
-			"vcd": testAccProvider,
+		testAccProvider = Provider()
+		testAccProviders = map[string]func() (*schema.Provider, error){
+			"vcd": func() (*schema.Provider, error) {
+				return testAccProvider, nil
+			},
 		}
 
 		// forcing item cleanup before test run
@@ -673,11 +675,11 @@ func createSuiteCatalogAndItem(config TestConfig) {
 	ovaFilePath := getCurrentDir() + "/../test-resources/" + config.Ova.OvaTestFileName
 
 	if config.Ova.OvaTestFileName == "" && testConfig.VCD.Catalog.CatalogItem == "" {
-		panic(fmt.Errorf("ovaTestFileName isn't configured. Tests aborted\n"))
+		panic(fmt.Errorf("ovaTestFileName isn't configured. Tests terminated\n"))
 	}
 
 	if config.Ova.OvaDownloadUrl == "" && testConfig.VCD.Catalog.CatalogItem == "" {
-		panic(fmt.Errorf("ovaDownloadUrl isn't configured. Tests aborted\n"))
+		panic(fmt.Errorf("ovaDownloadUrl isn't configured. Tests terminated\n"))
 	} else if testConfig.VCD.Catalog.CatalogItem == "" {
 		fmt.Printf("Downloading OVA. File will be saved as: %s\n", ovaFilePath)
 

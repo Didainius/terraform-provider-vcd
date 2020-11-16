@@ -4,11 +4,11 @@ package vcd
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"regexp"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccVcdVmInternalDisk(t *testing.T) {
@@ -18,6 +18,11 @@ func TestAccVcdVmInternalDisk(t *testing.T) {
 		t.Skip("VM internal disks tests requires system admin privileges")
 		return
 	}
+
+	if testConfig.VCD.ProviderVdc.StorageProfile == "" || testConfig.VCD.ProviderVdc.StorageProfile2 == "" {
+		t.Skip("Both variables testConfig.VCD.ProviderVdc.StorageProfile and testConfig.VCD.ProviderVdc.StorageProfile2 must be set")
+	}
+
 	internalDiskSize := 20000
 	storageProfile := testConfig.VCD.ProviderVdc.StorageProfile
 	diskResourceName := "disk1"
@@ -81,8 +86,8 @@ func TestAccVcdVmInternalDisk(t *testing.T) {
 	}
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configTextIde,
@@ -136,7 +141,7 @@ func TestAccVcdVmInternalDisk(t *testing.T) {
 				),
 			},
 			resource.TestStep{
-				ResourceName:      "vcd_vm_internal_disk." + diskResourceName + "-import",
+				ResourceName:      "vcd_vm_internal_disk." + diskResourceName,
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: importStateIdVmObject(testConfig.VCD.Org, vdcName, vappName, vmName, "3000"),
@@ -151,7 +156,7 @@ func testCheckInternalDiskNonStringOutputs(internalDiskSize int) resource.TestCh
 	return func(s *terraform.State) error {
 		outputs := s.RootModule().Outputs
 
-		if outputs["internal_disk_size"].Value != internalDiskSize {
+		if outputs["internal_disk_size"].Value != fmt.Sprintf("%d", internalDiskSize) {
 			return fmt.Errorf("internal disk size value didn't match")
 		}
 
