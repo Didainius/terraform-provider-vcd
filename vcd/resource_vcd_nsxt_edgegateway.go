@@ -173,10 +173,13 @@ func resourceVcdNsxtEdgeGatewayUpdate(d *schema.ResourceData, meta interface{}) 
 		return fmt.Errorf("could not retrieve edge gateway: %s", err)
 	}
 
-	edge.EdgeGateway, err = getNsxtEdgeGatewayType(d, adminOrg, vdc)
+	updatedEdge, err := getNsxtEdgeGatewayType(d, adminOrg, vdc)
 	if err != nil {
 		return fmt.Errorf("error creating edge gateway type: %s", err)
 	}
+
+	updatedEdge.ID = edge.EdgeGateway.ID
+	edge.EdgeGateway = updatedEdge
 
 	_, err = edge.Update(edge.EdgeGateway)
 	if err != nil {
@@ -307,9 +310,9 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, adminOrg *govcd.AdminOrg, vd
 	}
 
 	// Optional edge_cluster_id
-	if clusterId, isSet := d.GetOk("edge_cluster_id"); isSet {
-		e.EdgeClusterConfig.PrimaryEdgeCluster.BackingID = clusterId.(string)
-	}
+	// if clusterId, isSet := d.GetOk("edge_cluster_id"); isSet {
+	// 	e.EdgeClusterConfig.PrimaryEdgeCluster.BackingID = clusterId.(string)
+	// }
 
 	return &e, nil
 }
@@ -361,7 +364,7 @@ func getNsxtEdgeGatewayUplinkRangeTypes(subnetMap map[string]interface{}) []type
 	return subnetRanges
 }
 
-// setNsxtEdgeGatewayData
+// setNsxtEdgeGatewayData sets schema
 func setNsxtEdgeGatewayData(e *types.OpenAPIEdgeGateway, d *schema.ResourceData) error {
 
 	_ = d.Set("name", e.Name)
@@ -389,6 +392,8 @@ func setNsxtEdgeGatewayData(e *types.OpenAPIEdgeGateway, d *schema.ResourceData)
 
 		// Check for allocated IPs
 		ipRangeCount := len(subnetValue.IPRanges.Values)
+		// at least one IP range was set in HCL
+		// _, ipRangeWasSet := d.GetOk("")
 		if ipRangeCount > 0 {
 			allIpRanges := make([]interface{}, ipRangeCount)
 			for ipRangeIndex, ipRangeValue := range subnetValue.IPRanges.Values {
