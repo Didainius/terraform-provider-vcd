@@ -22,7 +22,6 @@ requires at least VCD *10.1.1+* and NSX-T *3.1+*.
 data "vcd_nsxt_edge_cluster" "first" {
   name = "edge-cluster-one"
 }
-
 ```
 
 
