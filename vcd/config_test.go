@@ -914,6 +914,20 @@ func importStateIdOrgVdcObject(vcd TestConfig, objectName string) resource.Impor
 	}
 }
 
+// Used by all entities that depend on Org + NSX-T VDC (such as Vapp, networks, edge gateway)
+func importStateIdOrgNsxtVdcObject(vcd TestConfig, objectName string) resource.ImportStateIdFunc {
+	return func(*terraform.State) (string, error) {
+		if testConfig.VCD.Org == "" || testConfig.Nsxt.Vdc == "" || objectName == "" {
+			return "", fmt.Errorf("missing information to generate import path")
+		}
+		return testConfig.VCD.Org +
+			ImportSeparator +
+			testConfig.Nsxt.Vdc +
+			ImportSeparator +
+			objectName, nil
+	}
+}
+
 // Used by all entities that depend on Org + Catalog (such as catalog item, media item)
 func importStateIdOrgCatalogObject(vcd TestConfig, objectName string) resource.ImportStateIdFunc {
 	return func(*terraform.State) (string, error) {

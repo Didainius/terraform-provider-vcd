@@ -240,28 +240,27 @@ func resourceVcdNsxtEdgeGatewayDelete(d *schema.ResourceData, meta interface{}) 
 
 // resourceVcdNsxtEdgeGatewayImport
 func resourceVcdNsxtEdgeGatewayImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	log.Printf("[TRACE] edge gateway import initiated")
+	log.Printf("[TRACE] NSX-T edge gateway import initiated")
 
 	resourceURI := strings.Split(d.Id(), ImportSeparator)
 	if len(resourceURI) != 3 {
-		return nil, fmt.Errorf("resource name must be specified as org-name.vdc-name.edge-gw-name (or edge-gw-ID)")
+		return nil, fmt.Errorf("resource name must be specified as org-name.vdc-name.nsxt-edge-gw-name")
 	}
-	orgName, _, edgeName := resourceURI[0], resourceURI[1], resourceURI[2]
+	orgName, vdcName, edgeName := resourceURI[0], resourceURI[1], resourceURI[2]
 
 	vcdClient := meta.(*VCDClient)
 	adminOrg, err := vcdClient.GetAdminOrg(orgName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find org %s: %s", orgName, err)
 	}
-	// vdc, err := adminOrg.GetVDCByName(vdcName, false)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("unable to find VDC %s: %s", vdcName, err)
-	// }
 
 	edge, err := adminOrg.GetNsxtEdgeGatewayByName(edgeName)
 	if err != nil {
-		return nil, fmt.Errorf("could not retrieve edge gateway with ID '%s': %s", d.Id(), err)
+		return nil, fmt.Errorf("could not retrieve NSX-T edge gateway with ID '%s': %s", d.Id(), err)
 	}
+
+	_ = d.Set("org", orgName)
+	_ = d.Set("vdc", vdcName)
 
 	d.SetId(edge.EdgeGateway.ID)
 

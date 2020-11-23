@@ -36,7 +36,6 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 	var params = StringMap{
 		"Org":                testConfig.VCD.Org,
 		"NsxtVdc":            testConfig.Nsxt.Vdc,
-		"EdgeGateway":        "nsxt-edge-gateway-test",
 		"NsxtEdgeGatewayVcd": "nsxt-edge",
 		"ExternalNetwork":    testConfig.Networking.ExternalNetwork,
 		"Tags":               "gateway nsxt",
@@ -62,7 +61,7 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckVcdNsxtEdgeGatewayDestroy(params["nsxt-edge-gateway-test"].(string)),
+		CheckDestroy:      testAccCheckVcdNsxtEdgeGatewayDestroy(params["NsxtEdgeGatewayVcd"].(string)),
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configText,
@@ -78,7 +77,6 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 						"start_address": nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].StartAddress,
 						"end_address":   nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].StartAddress,
 					}),
-					// resource.TestMatchResourceAttr("vcd_edgegateway.nsxt-edge", "name", ipV4Regex),
 				),
 			},
 			resource.TestStep{
@@ -96,16 +94,14 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 						"start_address": nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].StartAddress,
 						"end_address":   nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
 					}),
-					// resource.TestMatchResourceAttr("vcd_edgegateway.nsxt-edge", "name", ipV4Regex),
 				),
 			},
-			// resource.TestStep{
-			// 	ResourceName:            "vcd_edgegateway." + edgeGatewayNameBasic + "-import",
-			// 	ImportState:             true,
-			// 	ImportStateVerify:       true,
-			// 	ImportStateIdFunc:       importStateIdOrgVdcObject(testConfig, edgeGatewayVcdName),
-			// 	ImportStateVerifyIgnore: []string{"external_network", "external_networks"},
-			// },
+			resource.TestStep{
+				ResourceName:      "vcd_nsxt_edgegateway.nsxt-edge",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdOrgNsxtVdcObject(testConfig, params["NsxtEdgeGatewayVcd"].(string)),
+			},
 		},
 	})
 }
