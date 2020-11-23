@@ -1,35 +1,45 @@
-// +build gateway ALL functional
+// +build gateway nsxt ALL functional
 
 package vcd
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+
+	"github.com/vmware/go-vcloud-director/v2/govcd"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccVcdNsxtEdgeGateway(t *testing.T) {
-	// var (
-	// 	edgeGatewayVcdName    string = "test_edge_gateway_basic"
-	// 	newExternalNetwork    string = "TestExternalNetwork"
-	// 	newExternalNetworkVcd string = "test_external_network"
-	// )
+
+	if !usingSysAdmin() {
+		t.Skip(t.Name() + " requires system admin privileges")
+		return
+	}
+
+	skipNoNsxtConfiguration(t)
+	vcdClient := createTemporaryVCDConnection()
+	if vcdClient.Client.APIVCDMaxVersionIs("< 34.0") {
+		t.Skip(t.Name() + " requires at least API v34.0 (vCD 10.1+)")
+	}
+
+	nsxtExtNet, err := govcd.GetExternalNetworkV2ByName(vcdClient.VCDClient, testConfig.Nsxt.ExternalNetwork)
+	if err != nil {
+		t.Skipf("%s - could not retrieve external network", t.Name())
+	}
 
 	// String map to fill the template
 	var params = StringMap{
-		"Org":     testConfig.VCD.Org,
-		"NsxtVdc": testConfig.Nsxt.Vdc,
-		// "EdgeCluster": testConfig.Nsxt.,
-		"EdgeGateway":        edgeGatewayNameBasic,
+		"Org":                testConfig.VCD.Org,
+		"NsxtVdc":            testConfig.Nsxt.Vdc,
+		"EdgeGateway":        "nsxt-edge-gateway-test",
 		"NsxtEdgeGatewayVcd": "nsxt-edge",
 		"ExternalNetwork":    testConfig.Networking.ExternalNetwork,
-		"Advanced":           "true",
-		// "NewExternalNetwork":    newExternalNetwork,
-		// "NewExternalNetworkVcd": newExternalNetworkVcd,
-		"Type":      testConfig.Networking.ExternalNetworkPortGroupType,
-		"PortGroup": testConfig.Networking.ExternalNetworkPortGroup,
-		"Vcenter":   testConfig.Networking.Vcenter,
-		"Tags":      "gateway",
+		"Tags":               "gateway nsxt",
 	}
 	configText := templateFill(testAccNsxtEdgeGateway, params)
 	if vcdShortTest {
@@ -52,7 +62,7 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckVcdEdgeGatewayDestroy(edgeGatewayNameBasic),
+		CheckDestroy:      testAccCheckVcdNsxtEdgeGatewayDestroy(params["nsxt-edge-gateway-test"].(string)),
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configText,
@@ -60,9 +70,13 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", "nsxt-edge"),
 					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*", map[string]string{
 						"enabled":       "true",
-						"gateway":       "10.150.191.253",
-						"prefix_length": "19",
-						"primary_ip":    "10.150.160.137",
+						"gateway":       nsxtExtNet.ExternalNetwork.Subnets.Values[0].Gateway,
+						"prefix_length": strconv.Itoa(nsxtExtNet.ExternalNetwork.Subnets.Values[0].PrefixLength),
+						"primary_ip":    nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].StartAddress,
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*.allocated_ips.*", map[string]string{
+						"start_address": nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].StartAddress,
+						"end_address":   nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].StartAddress,
 					}),
 					// resource.TestMatchResourceAttr("vcd_edgegateway.nsxt-edge", "name", ipV4Regex),
 				),
@@ -74,9 +88,13 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "description", "Updated-Description"),
 					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*", map[string]string{
 						"enabled":       "true",
-						"gateway":       "10.150.191.253",
-						"prefix_length": "19",
-						"primary_ip":    "10.150.160.137",
+						"gateway":       nsxtExtNet.ExternalNetwork.Subnets.Values[0].Gateway,
+						"prefix_length": strconv.Itoa(nsxtExtNet.ExternalNetwork.Subnets.Values[0].PrefixLength),
+						"primary_ip":    nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*.allocated_ips.*", map[string]string{
+						"start_address": nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].StartAddress,
+						"end_address":   nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
 					}),
 					// resource.TestMatchResourceAttr("vcd_edgegateway.nsxt-edge", "name", ipV4Regex),
 				),
@@ -90,6 +108,36 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 			// },
 		},
 	})
+}
+
+func testAccCheckVcdNsxtEdgeGatewayDestroy(edgeName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+
+		for _, rs := range s.RootModule().Resources {
+			edgeGatewayName := rs.Primary.Attributes["name"]
+			if rs.Type != "vcd_edgegateway" {
+				continue
+			}
+			if edgeGatewayName != edgeName {
+				continue
+			}
+			conn := testAccProvider.Meta().(*VCDClient)
+			orgName := rs.Primary.Attributes["org"]
+			vdcName := rs.Primary.Attributes["vdc"]
+
+			org, _, err := conn.GetOrgAndVdc(orgName, vdcName)
+			if err != nil {
+				return fmt.Errorf("error retrieving org %s and vdc %s : %s ", orgName, vdcName, err)
+			}
+
+			_, err = org.GetNsxtEdgeGatewayByName(edgeName)
+			if err == nil {
+				return fmt.Errorf("NSX-T edge gateway %s was not removed", edgeName)
+			}
+		}
+
+		return nil
+	}
 }
 
 const testAccNsxtEdgeGatewayDataSources = `
@@ -119,12 +167,13 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
   subnet {
-     gateway               = "10.150.191.253"
-     prefix_length         = "19"
-     primary_ip            = "10.150.160.137"
+     gateway               = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
+     prefix_length         = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
+
+     primary_ip            = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].start_address
      allocated_ips {
-       start_address = "10.150.160.137"
-       end_address   = "10.150.160.137"
+       start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].start_address
+       end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].start_address
      }
   }
 }
@@ -142,12 +191,12 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
   subnet {
-     gateway               = "10.150.191.253"
-     prefix_length         = "19"
-     primary_ip            = "10.150.160.137"
+     gateway               = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
+     prefix_length         = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
+     primary_ip            = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      allocated_ips {
-       start_address = "10.150.160.137"
-       end_address   = "10.150.160.137"
+       start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].start_address
+       end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      }
   }
 }

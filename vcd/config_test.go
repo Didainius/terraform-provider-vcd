@@ -119,10 +119,11 @@ type TestConfig struct {
 		} `json:"peer"`
 	} `json:"networking"`
 	Nsxt struct {
-		Manager        string `json:"manager"`
-		Tier0router    string `json:"tier0router"`
-		Tier0routerVrf string `json:"tier0routervrf"`
-		Vdc            string `json:"vdc"`
+		Manager         string `json:"manager"`
+		Tier0router     string `json:"tier0router"`
+		Tier0routerVrf  string `json:"tier0routervrf"`
+		Vdc             string `json:"vdc"`
+		ExternalNetwork string `json:"externalNetwork"`
 	} `json:"nsxt"`
 	Logging struct {
 		Enabled         bool   `json:"enabled,omitempty"`

@@ -5,8 +5,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -194,10 +192,6 @@ func resourceVcdNsxtEdgeGatewayRead(d *schema.ResourceData, meta interface{}) er
 	log.Printf("[TRACE] edge gateway read initiated")
 
 	vcdClient := meta.(*VCDClient)
-	// _, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
-	// if err != nil {
-	// 	return fmt.Errorf("error retrieving VDC: %s", err)
-	// }
 
 	adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
 	if err != nil {
@@ -277,7 +271,7 @@ func resourceVcdNsxtEdgeGatewayImport(d *schema.ResourceData, meta interface{}) 
 // getNsxtEdgeGatewayType
 func getNsxtEdgeGatewayType(d *schema.ResourceData, adminOrg *govcd.AdminOrg, vdc *govcd.Vdc) (*types.OpenAPIEdgeGateway, error) {
 
-	spew.Dump(d.Get("subnet"))
+	// spew.Dump(d.Get("subnet"))
 
 	e := types.OpenAPIEdgeGateway{
 		Name:        d.Get("name").(string),
@@ -412,7 +406,7 @@ func setNsxtEdgeGatewayData(e *types.OpenAPIEdgeGateway, d *schema.ResourceData)
 
 	subnetSet := schema.NewSet(schema.HashResource(nsxtEdgeSubnet), subnets)
 
-	spew.Dump(subnetSet)
+	// spew.Dump(subnetSet)
 	err := d.Set("subnet", subnetSet)
 	if err != nil {
 		return fmt.Errorf("error setting subnets after read: %s", err)
