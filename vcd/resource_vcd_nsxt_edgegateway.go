@@ -278,13 +278,13 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, adminOrg *govcd.AdminOrg, vd
 		// DistributedRoutingEnabled: true,
 		EdgeGatewayUplinks: []types.EdgeGatewayUplinks{types.EdgeGatewayUplinks{
 			UplinkID: d.Get("external_network_id").(string),
-			Subnets:  types.EdgeGatewaySubnets{getNsxtEdgeGatewayUplinksType(d)},
+			Subnets:  types.OpenAPIEdgeGatewaySubnets{getNsxtEdgeGatewayUplinksType(d)},
 			// Connected:                false,
 			// QuickAddAllocatedIPCount: nil,
 			Dedicated: d.Get("dedicate_external_network").(bool),
 		}},
 		// OrgVdcNetworkCount:        0,
-		// GatewayBacking: types.GatewayBacking{},
+		// OpenAPIEdgeGatewayBacking: types.OpenAPIEdgeGatewayBacking{},
 		OrgVdc: &types.OpenApiReference{
 			ID: vdc.Vdc.ID,
 		},
@@ -292,8 +292,8 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, adminOrg *govcd.AdminOrg, vd
 		// 	ID: adminOrg.AdminOrg.ID,
 		// },
 		// ServiceNetworkDefinition:  "",
-		// EdgeClusterConfig:         types.EdgeClusterConfig{},
-		// GatewayBacking: types.GatewayBacking{
+		// OpenAPIEdgeGatewayEdgeClusterConfig:         types.OpenAPIEdgeGatewayEdgeClusterConfig{},
+		// OpenAPIEdgeGatewayBacking: types.OpenAPIEdgeGatewayBacking{
 		// 	GatewayType: "NSXT_BACKED",
 		// 	// GatewayType: "NSXT_IMPORT",
 		// 	NetworkProvider: types.NetworkProvider{
@@ -304,20 +304,20 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, adminOrg *govcd.AdminOrg, vd
 
 	// Optional edge_cluster_id
 	// if clusterId, isSet := d.GetOk("edge_cluster_id"); isSet {
-	// 	e.EdgeClusterConfig.PrimaryEdgeCluster.BackingID = clusterId.(string)
+	// 	e.OpenAPIEdgeGatewayEdgeClusterConfig.PrimaryEdgeCluster.BackingID = clusterId.(string)
 	// }
 
 	return &e, nil
 }
 
 // getNsxtEdgeGatewayUplinksType
-func getNsxtEdgeGatewayUplinksType(d *schema.ResourceData) []types.EdgeGatewaySubnetValue {
+func getNsxtEdgeGatewayUplinksType(d *schema.ResourceData) []types.OpenAPIEdgeGatewaySubnetValue {
 	extNetworks := d.Get("subnet").(*schema.Set).List()
-	subnetSlice := make([]types.EdgeGatewaySubnetValue, len(extNetworks))
+	subnetSlice := make([]types.OpenAPIEdgeGatewaySubnetValue, len(extNetworks))
 
 	for index, singleSubnet := range extNetworks {
 		subnetMap := singleSubnet.(map[string]interface{})
-		singleSubnet := types.EdgeGatewaySubnetValue{
+		singleSubnet := types.OpenAPIEdgeGatewaySubnetValue{
 			Gateway:      subnetMap["gateway"].(string),
 			PrefixLength: subnetMap["prefix_length"].(int),
 			Enabled:      subnetMap["enabled"].(bool),
