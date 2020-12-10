@@ -1,14 +1,14 @@
 ---
 layout: "vcd"
-page_title: "vCloudDirector: vcd_edgegateway"
+page_title: "Cloud Director: vcd_edgegateway"
 sidebar_current: "docs-vcd-resource-edgegateway"
 description: |-
-  Provides a vCloud Director edge gateway. This can be used to create and delete edge gateways connected to one or more external networks.
+  Provides a Cloud Director edge gateway. This can be used to create and delete edge gateways connected to one or more external networks.
 ---
 
 # vcd\_edgegateway
 
-Provides a vCloud Director edge gateway directly connected to one or more external networks. This can be used to create
+Provides a Cloud Director edge gateway directly connected to one or more external networks. This can be used to create
 and delete edge gateways for Org VDC networks to connect.
 
 Supported in provider *v2.4+*
@@ -18,7 +18,7 @@ You must use `System Adminstrator` account in `provider` configuration
 and then provide `org` and `vdc` arguments for edge gateway to work.
 
 ~> **Note:** Load balancing capabilities will work only when edge gateway is `advanced`. Load
-balancing settings will be **ignored** when it is not. Refer to [official vCloud Director documentation]
+balancing settings will be **ignored** when it is not. Refer to [official Cloud Director documentation]
 (https://docs.vmware.com/en/vCloud-Director/9.7/com.vmware.vcloud.tenantportal.doc/GUID-7E082E77-B459-4CE7-806D-2769F7CB5624.html) 
 for more information.
 
