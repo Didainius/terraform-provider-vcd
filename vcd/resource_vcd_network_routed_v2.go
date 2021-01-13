@@ -3,6 +3,9 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -42,32 +45,46 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 				Description: "Edge gateway name in which NAT Rule is located",
 			},
 			"name": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "Network name",
 			},
 			"description": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "Network description",
+			},
+			"interface_type": &schema.Schema{
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      "INTERNAL",
+				Description:  "Optional interface type (only for NSX-V networks). One of 'INTERNAL' (default), 'UPLINK', 'TRUNK', 'SUBINTERFACE'",
+				ValidateFunc: validation.StringInSlice([]string{"INTERNAL", "UPLINK", "TRUNK", "SUBINTERFACE"}, false),
 			},
 			"gateway": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "Gateway IP address",
 			},
 			"prefix_length": &schema.Schema{
-				Type:     schema.TypeInt,
-				Required: true,
+				Type:        schema.TypeInt,
+				Required:    true,
+				Description: "Network prefix",
 			},
 			"dns1": &schema.Schema{
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "DNS server 1",
 			},
 			"dns2": &schema.Schema{
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "DNS server 1",
 			},
 			"dns_suffix": &schema.Schema{
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "DNS suffix",
 			},
 			"static_ip_pool": &schema.Schema{
 				Type:        schema.TypeSet,
@@ -83,8 +100,8 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 func resourceVcdNetworkRoutedV2Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 
-	// vcdClient.lockParentEdgeGtw(d)
-	// defer vcdClient.unLockParentEdgeGtw(d)
+	vcdClient.lockParentEdgeGtw(d)
+	defer vcdClient.unLockParentEdgeGtw(d)
 
 	_, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
@@ -190,7 +207,7 @@ func resourceVcdNetworkRoutedV2Delete(ctx context.Context, d *schema.ResourceDat
 		return diag.Errorf("error getting Org Vdc network: %s", err)
 	}
 
-	orgNetwork.Delete()
+	err = orgNetwork.Delete()
 	if err != nil {
 		return diag.Errorf("error deleting Org Vdc network: %s", err)
 	}
@@ -200,6 +217,30 @@ func resourceVcdNetworkRoutedV2Delete(ctx context.Context, d *schema.ResourceDat
 
 // resourceVcdNetworkRoutedV2Import
 func resourceVcdNetworkRoutedV2Import(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	resourceURI := strings.Split(d.Id(), ImportSeparator)
+	if len(resourceURI) != 3 {
+		return nil, fmt.Errorf("[routed network import] resource name must be specified as org-name.vdc-name.network-name")
+	}
+	orgName, vdcName, networkName := resourceURI[0], resourceURI[1], resourceURI[2]
+
+	vcdClient := meta.(*VCDClient)
+	_, vdc, err := vcdClient.GetOrgAndVdc(orgName, vdcName)
+	if err != nil {
+		return nil, fmt.Errorf("[routed network import] unable to find VDC %s: %s ", vdcName, err)
+	}
+
+	orgNetwork, err := vdc.GetNsxtOrgVdcNetworkByName(networkName)
+	if err != nil {
+		return nil, fmt.Errorf("error reading network with name '%s': %s", networkName, err)
+	}
+
+	if !orgNetwork.IsRouted() {
+		return nil, fmt.Errorf("org network with name '%s' found, but is not of type Routed (type is '%s')",
+			networkName, orgNetwork.GetType())
+	}
+
+	d.SetId(orgNetwork.OrgVdcNetwork.ID)
+
 	return []*schema.ResourceData{d}, nil
 }
 
@@ -209,6 +250,7 @@ func setOpenApiOrgVdcNetworkData(d *schema.ResourceData, orgVdcNetwork *types.Op
 	_ = d.Set("description", orgVdcNetwork.Description)
 	// Check if values are not empty
 	_ = d.Set("edge_gateway_id", orgVdcNetwork.Connection.RouterRef.ID)
+	_ = d.Set("interface_type", orgVdcNetwork.Connection.ConnectionType)
 
 	_ = d.Set("gateway", orgVdcNetwork.Subnets.Values[0].Gateway)
 	_ = d.Set("prefix_length", orgVdcNetwork.Subnets.Values[0].PrefixLength)
@@ -250,7 +292,8 @@ func getOpenApiOrgVdcNetworkType(d *schema.ResourceData, vdc *govcd.Vdc) (*types
 			RouterRef: types.OpenApiReference{
 				ID: d.Get("edge_gateway_id").(string),
 			},
-			ConnectionType: "INTERNAL",
+			// ConnectionType: "INTERNAL",
+			ConnectionType: d.Get("interface_type").(string),
 		},
 		Subnets: types.OrgVdcNetworkSubnets{
 			Values: []types.OrgVdcNetworkSubnetValues{
@@ -261,7 +304,7 @@ func getOpenApiOrgVdcNetworkType(d *schema.ResourceData, vdc *govcd.Vdc) (*types
 					DNSServer2:   d.Get("dns2").(string),
 					DNSSuffix:    d.Get("dns_suffix").(string),
 					IPRanges: types.OrgVdcNetworkSubnetIPRanges{
-						Values: processIpRangesS(d.Get("static_ip_pool").(*schema.Set)),
+						Values: processIpRanges(d.Get("static_ip_pool").(*schema.Set)),
 					},
 				},
 			},
@@ -269,17 +312,4 @@ func getOpenApiOrgVdcNetworkType(d *schema.ResourceData, vdc *govcd.Vdc) (*types
 	}
 
 	return orgVdcNetworkConfig, nil
-}
-
-func processIpRangesS(staticIpPool *schema.Set) []types.ExternalNetworkV2IPRange {
-	subnetRng := make([]types.ExternalNetworkV2IPRange, len(staticIpPool.List()))
-	for rangeIndex, subnetRange := range staticIpPool.List() {
-		subnetRangeStr := convertToStringMap(subnetRange.(map[string]interface{}))
-		oneRange := types.ExternalNetworkV2IPRange{
-			StartAddress: subnetRangeStr["start_address"],
-			EndAddress:   subnetRangeStr["end_address"],
-		}
-		subnetRng[rangeIndex] = oneRange
-	}
-	return subnetRng
 }
