@@ -56,10 +56,11 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 			},
 			"interface_type": &schema.Schema{
 				Type:         schema.TypeString,
+				ForceNew:     true,
 				Optional:     true,
 				Default:      "INTERNAL",
 				Description:  "Optional interface type (only for NSX-V networks). One of 'INTERNAL' (default), 'UPLINK', 'TRUNK', 'SUBINTERFACE'",
-				ValidateFunc: validation.StringInSlice([]string{"INTERNAL", "UPLINK", "TRUNK", "SUBINTERFACE"}, false),
+				ValidateFunc: validation.StringInSlice([]string{"INTERNAL", "UPLINK", "TRUNK", "SUBINTERFACE", "DISTRIBUTED"}, false),
 			},
 			"gateway": &schema.Schema{
 				Type:        schema.TypeString,
@@ -127,8 +128,8 @@ func resourceVcdNetworkRoutedV2Create(ctx context.Context, d *schema.ResourceDat
 func resourceVcdNetworkRoutedV2Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 
-	// vcdClient.lockParentEdgeGtw(d)
-	// defer vcdClient.unLockParentEdgeGtw(d)
+	vcdClient.lockParentEdgeGtw(d)
+	defer vcdClient.unLockParentEdgeGtw(d)
 
 	_, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
@@ -194,8 +195,8 @@ func resourceVcdNetworkRoutedV2Read(ctx context.Context, d *schema.ResourceData,
 func resourceVcdNetworkRoutedV2Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 
-	// vcdClient.lockParentEdgeGtw(d)
-	// defer vcdClient.unLockParentEdgeGtw(d)
+	vcdClient.lockParentEdgeGtw(d)
+	defer vcdClient.unLockParentEdgeGtw(d)
 
 	_, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
@@ -292,7 +293,6 @@ func getOpenApiOrgVdcNetworkType(d *schema.ResourceData, vdc *govcd.Vdc) (*types
 			RouterRef: types.OpenApiReference{
 				ID: d.Get("edge_gateway_id").(string),
 			},
-			// ConnectionType: "INTERNAL",
 			ConnectionType: d.Get("interface_type").(string),
 		},
 		Subnets: types.OrgVdcNetworkSubnets{

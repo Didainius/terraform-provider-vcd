@@ -66,6 +66,12 @@ resource "vcd_network_routed_v2" "net1" {
   name = "TestRoutedNsxv"
   description = "NSX-V routed network test OpenAPI"
 
+	// interface_type = "INTERNAL"
+  // interface_type = "SUBINTERFACE"
+  // interface_type = "TRUNK"
+  // interface_type = "UPLINK"
+  interface_type = "DISTRIBUTED"
+
   edge_gateway_id = data.vcd_edgegateway.existing.id
   
   gateway = "1.1.1.1"
@@ -137,6 +143,13 @@ resource "vcd_network_routed_v2" "net1" {
   vdc  = "{{.Vdc}}"
   name = "TestRoutedNsxt"
   description = "NSX-T routed network test OpenAPI"
+
+  // interface_type = "INTERNAL"
+  // interface_type = "SUBINTERFACE"
+  // interface_type = "TRUNK"
+  // interface_type = "UPLINK"
+  // interface_type = "DISTRIBUTED"
+  // INTERNAL UPLINK TRUNK SUBINTERFACE
 
   edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
 
