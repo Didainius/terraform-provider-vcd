@@ -151,6 +151,9 @@ func resourceVcdNetworkRoutedV2Update(ctx context.Context, d *schema.ResourceDat
 		return diag.FromErr(err)
 	}
 
+	// Add ID to the new type
+	networkType.ID = d.Id()
+
 	_, err = orgNetwork.Update(networkType)
 	if err != nil {
 		return diag.Errorf("error updating Org Vdc network: %s", err)
@@ -162,9 +165,6 @@ func resourceVcdNetworkRoutedV2Update(ctx context.Context, d *schema.ResourceDat
 // resourceVcdNetworkRoutedV2Read
 func resourceVcdNetworkRoutedV2Read(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-
-	// vcdClient.lockParentEdgeGtw(d)
-	// defer vcdClient.unLockParentEdgeGtw(d)
 
 	_, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {

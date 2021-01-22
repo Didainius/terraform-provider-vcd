@@ -36,10 +36,10 @@ func TestAccVcdNetworkRoutedV2NsxvInterfaceTypes(t *testing.T) {
 	configText1 := templateFill(testAccVcdNetworkRoutedV2Nsxv, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText1)
 
-	params["FuncName"] = t.Name() + "-step2"
-	params["InterfaceType"] = "distributed"
-	configText2 := templateFill(testAccVcdNetworkRoutedV2Nsxv, params)
-	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
+	// params["FuncName"] = t.Name() + "-step2"
+	// params["InterfaceType"] = "distributed"
+	// configText2 := templateFill(testAccVcdNetworkRoutedV2Nsxv, params)
+	// debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
 
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
@@ -63,12 +63,12 @@ func TestAccVcdNetworkRoutedV2NsxvInterfaceTypes(t *testing.T) {
 					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
 				),
 			},
-			resource.TestStep{ // step 0
-				Config: configText2,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
-				),
-			},
+			// resource.TestStep{ // step 0
+			// 	Config: configText2,
+			// 	Check: resource.ComposeAggregateTestCheckFunc(
+			// 		resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
+			// 	),
+			// },
 
 			// Check that import works
 			resource.TestStep{ // step 1
@@ -111,11 +111,17 @@ resource "vcd_network_routed_v2" "net1" {
 `
 
 func TestAccVcdNetworkRoutedV2Nsxt(t *testing.T) {
+	vcdClient := createTemporaryVCDConnection()
+	if vcdClient.Client.APIVCDMaxVersionIs("< 34.0") {
+		t.Skip(t.Name() + " requires at least API v34.0 (vCD 10.1.1+)")
+	}
+	skipNoNsxtConfiguration(t)
+
 	// String map to fill the template
 	var params = StringMap{
 		"Org":    testConfig.VCD.Org,
 		"Vdc":    testConfig.Nsxt.Vdc,
-		"EdgeGw": "nsxt-edge",
+		"EdgeGw": testConfig.Nsxt.EdgeGateway,
 		// "Tags": "lb lbVirtualServer",
 	}
 
