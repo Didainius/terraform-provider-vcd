@@ -8,22 +8,38 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-func TestAccVcdNetworkRoutedV2Nsxv(t *testing.T) {
+// TestAccVcdNetworkRoutedV2NsxvInterfaceTypes attempts to test all supported interface types for
+// NSX-V Org VDC routed network
+func TestAccVcdNetworkRoutedV2NsxvInterfaceTypes(t *testing.T) {
 	// String map to fill the template
 	var params = StringMap{
-		"Org":    testConfig.VCD.Org,
-		"Vdc":    testConfig.VCD.Vdc,
-		"EdgeGw": testConfig.Networking.EdgeGateway,
+		"Org":           testConfig.VCD.Org,
+		"Vdc":           testConfig.VCD.Vdc,
+		"EdgeGw":        testConfig.Networking.EdgeGateway,
+		"InterfaceType": "internal",
+		"NetworkName":   t.Name(),
 		// "Tags": "lb lbVirtualServer",
 	}
 
-	configText := templateFill(TestAccVcdNetworkRoutedV2NsxvStep0, params)
+	// interface_type = "INTERNAL"
+	// interface_type = "SUBINTERFACE"
+	// interface_type = "TRUNK"
+	// interface_type = "UPLINK"
+	// interface_type = "DISTRIBUTED"
+	// INTERNAL UPLINK TRUNK SUBINTERFACE
+
+	configText := templateFill(testAccVcdNetworkRoutedV2Nsxv, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 0: %s", configText)
 
-	// params["FuncName"] = t.Name() + "-step2"
-	// params["VirtualServerName"] = t.Name() + "-step2"
-	// configText2 := templateFill(testAccVcdLbVirtualServer_step2, params)
-	// debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
+	params["FuncName"] = t.Name() + "-step1"
+	params["InterfaceType"] = "subinterface"
+	configText1 := templateFill(testAccVcdNetworkRoutedV2Nsxv, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText1)
+
+	params["FuncName"] = t.Name() + "-step2"
+	params["InterfaceType"] = "distributed"
+	configText2 := templateFill(testAccVcdNetworkRoutedV2Nsxv, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
 
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
@@ -41,19 +57,31 @@ func TestAccVcdNetworkRoutedV2Nsxv(t *testing.T) {
 					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
 				),
 			},
+			resource.TestStep{ // step 0
+				Config: configText1,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
+				),
+			},
+			resource.TestStep{ // step 0
+				Config: configText2,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
+				),
+			},
 
 			// Check that import works
-			// resource.TestStep{ // step 1
-			// 	ResourceName:      "vcd_lb_virtual_server.http",
-			// 	ImportState:       true,
-			// 	ImportStateVerify: true,
-			// 	ImportStateIdFunc: importStateIdEdgeGatewayObject(testConfig, testConfig.Networking.EdgeGateway, t.Name()),
-			// },
+			resource.TestStep{ // step 1
+				ResourceName:      "vcd_network_routed_v2.net1",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdOrgVdcObject(testConfig, t.Name()),
+			},
 		},
 	})
 }
 
-const TestAccVcdNetworkRoutedV2NsxvStep0 = `
+const testAccVcdNetworkRoutedV2Nsxv = `
 data "vcd_edgegateway" "existing" {
   org  = "{{.Org}}"
   vdc  = "{{.Vdc}}"
@@ -63,14 +91,10 @@ data "vcd_edgegateway" "existing" {
 resource "vcd_network_routed_v2" "net1" {
   org  = "{{.Org}}"
   vdc  = "{{.Vdc}}"
-  name = "TestRoutedNsxv"
+  name = "{{.NetworkName}}"
   description = "NSX-V routed network test OpenAPI"
 
-	// interface_type = "INTERNAL"
-  // interface_type = "SUBINTERFACE"
-  // interface_type = "TRUNK"
-  // interface_type = "UPLINK"
-  interface_type = "DISTRIBUTED"
+  interface_type = "{{.InterfaceType}}"
 
   edge_gateway_id = data.vcd_edgegateway.existing.id
   

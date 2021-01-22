@@ -55,12 +55,12 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 				Description: "Network description",
 			},
 			"interface_type": &schema.Schema{
-				Type:         schema.TypeString,
-				ForceNew:     true,
-				Optional:     true,
-				Default:      "INTERNAL",
-				Description:  "Optional interface type (only for NSX-V networks). One of 'INTERNAL' (default), 'UPLINK', 'TRUNK', 'SUBINTERFACE'",
-				ValidateFunc: validation.StringInSlice([]string{"INTERNAL", "UPLINK", "TRUNK", "SUBINTERFACE", "DISTRIBUTED"}, false),
+				Type:             schema.TypeString,
+				Optional:         true,
+				Default:          "internal",
+				Description:      "Optional interface type (only for NSX-V networks). One of 'INTERNAL' (default), 'UPLINK', 'TRUNK', 'SUBINTERFACE'",
+				ValidateFunc:     validation.StringInSlice([]string{"internal", "subinterface", "distributed"}, true),
+				DiffSuppressFunc: suppressCase,
 			},
 			"gateway": &schema.Schema{
 				Type:        schema.TypeString,
@@ -114,12 +114,12 @@ func resourceVcdNetworkRoutedV2Create(ctx context.Context, d *schema.ResourceDat
 		return diag.FromErr(err)
 	}
 
-	orgNetwork, err := vdc.CreateNsxtOrgVdcNetwork(networkType)
+	orgNetwork, err := vdc.CreateOpenApiOrgVdcNetwork(networkType)
 	if err != nil {
 		return diag.Errorf("error creating Org Vdc routed network: %s", err)
 	}
 
-	d.SetId(orgNetwork.OrgVdcNetwork.ID)
+	d.SetId(orgNetwork.OpenApiOrgVdcNetwork.ID)
 
 	return resourceVcdNetworkRoutedV2Read(ctx, d, meta)
 }
@@ -136,7 +136,7 @@ func resourceVcdNetworkRoutedV2Update(ctx context.Context, d *schema.ResourceDat
 		return diag.Errorf("error retrieving VDC: %s", err)
 	}
 
-	orgNetwork, err := vdc.GetNsxtOrgVdcNetworkById(d.Id())
+	orgNetwork, err := vdc.GetOpenApiOrgVdcNetworkById(d.Id())
 	// If object is not found -
 	if govcd.ContainsNotFound(err) {
 		d.SetId("")
@@ -171,7 +171,7 @@ func resourceVcdNetworkRoutedV2Read(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("error retrieving VDC: %s", err)
 	}
 
-	orgNetwork, err := vdc.GetNsxtOrgVdcNetworkById(d.Id())
+	orgNetwork, err := vdc.GetOpenApiOrgVdcNetworkById(d.Id())
 	// If object is not found -
 	if govcd.ContainsNotFound(err) {
 		d.SetId("")
@@ -181,12 +181,12 @@ func resourceVcdNetworkRoutedV2Read(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("error getting Org Vdc network: %s", err)
 	}
 
-	err = setOpenApiOrgVdcNetworkData(d, orgNetwork.OrgVdcNetwork)
+	err = setOpenApiOrgVdcNetworkData(d, orgNetwork.OpenApiOrgVdcNetwork)
 	if err != nil {
 		return diag.Errorf("error setting Org Vdc network data: %s", err)
 	}
 
-	d.SetId(orgNetwork.OrgVdcNetwork.ID)
+	d.SetId(orgNetwork.OpenApiOrgVdcNetwork.ID)
 
 	return nil
 }
@@ -203,7 +203,7 @@ func resourceVcdNetworkRoutedV2Delete(ctx context.Context, d *schema.ResourceDat
 		return diag.Errorf("error retrieving VDC: %s", err)
 	}
 
-	orgNetwork, err := vdc.GetNsxtOrgVdcNetworkById(d.Id())
+	orgNetwork, err := vdc.GetOpenApiOrgVdcNetworkById(d.Id())
 	if err != nil {
 		return diag.Errorf("error getting Org Vdc network: %s", err)
 	}
@@ -230,7 +230,7 @@ func resourceVcdNetworkRoutedV2Import(ctx context.Context, d *schema.ResourceDat
 		return nil, fmt.Errorf("[routed network import] unable to find VDC %s: %s ", vdcName, err)
 	}
 
-	orgNetwork, err := vdc.GetNsxtOrgVdcNetworkByName(networkName)
+	orgNetwork, err := vdc.GetOpenApiOrgVdcNetworkByName(networkName)
 	if err != nil {
 		return nil, fmt.Errorf("error reading network with name '%s': %s", networkName, err)
 	}
@@ -240,7 +240,9 @@ func resourceVcdNetworkRoutedV2Import(ctx context.Context, d *schema.ResourceDat
 			networkName, orgNetwork.GetType())
 	}
 
-	d.SetId(orgNetwork.OrgVdcNetwork.ID)
+	_ = d.Set("org", orgName)
+	_ = d.Set("vdc", vdcName)
+	d.SetId(orgNetwork.OpenApiOrgVdcNetwork.ID)
 
 	return []*schema.ResourceData{d}, nil
 }
@@ -293,7 +295,8 @@ func getOpenApiOrgVdcNetworkType(d *schema.ResourceData, vdc *govcd.Vdc) (*types
 			RouterRef: types.OpenApiReference{
 				ID: d.Get("edge_gateway_id").(string),
 			},
-			ConnectionType: d.Get("interface_type").(string),
+			// API requires interface type in upper case, but we accept any case
+			ConnectionType: strings.ToUpper(d.Get("interface_type").(string)),
 		},
 		Subnets: types.OrgVdcNetworkSubnets{
 			Values: []types.OrgVdcNetworkSubnetValues{
