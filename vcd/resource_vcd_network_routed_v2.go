@@ -42,7 +42,7 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
-				Description: "Edge gateway name in which NAT Rule is located",
+				Description: "Edge gateway name in which Routed network is located",
 			},
 			"name": &schema.Schema{
 				Type:        schema.TypeString,
@@ -236,7 +236,7 @@ func resourceVcdNetworkRoutedV2Import(ctx context.Context, d *schema.ResourceDat
 	}
 
 	if !orgNetwork.IsRouted() {
-		return nil, fmt.Errorf("org network with name '%s' found, but is not of type Routed (type is '%s')",
+		return nil, fmt.Errorf("Org network with name '%s' found, but is not of type Routed (type is '%s')",
 			networkName, orgNetwork.GetType())
 	}
 
