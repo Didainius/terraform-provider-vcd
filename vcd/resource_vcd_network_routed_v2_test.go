@@ -126,43 +126,101 @@ func TestAccVcdNetworkRoutedV2Nsxt(t *testing.T) {
 		// "Tags": "lb lbVirtualServer",
 	}
 
-	configText := templateFill(TestAccVcdNetworkRoutedV2NsxtStep0, params)
-	debugPrintf("#[DEBUG] CONFIGURATION for step 0: %s", configText)
+	configText := templateFill(TestAccVcdNetworkRoutedV2NsxtStep1, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText)
 
-	// params["FuncName"] = t.Name() + "-step2"
-	// params["VirtualServerName"] = t.Name() + "-step2"
-	// configText2 := templateFill(testAccVcdLbVirtualServer_step2, params)
-	// debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
+	params["FuncName"] = t.Name() + "-step2"
+	configText2 := templateFill(TestAccVcdNetworkRoutedV2NsxtStep2, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
+
+	params["FuncName"] = t.Name() + "-step3"
+	configText3 := templateFill(TestAccVcdNetworkRoutedV2NsxtStep3, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 3: %s", configText3)
 
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
 		return
 	}
 
+	// Ensure the resource is never recreated - ID stays the same
+	cachedId := &testCachedFieldValue{}
+
 	resource.ParallelTest(t, resource.TestCase{
 		ProviderFactories: testAccProviders,
 		PreCheck:          func() { testAccPreCheck(t) },
 		// CheckDestroy:      testAccCheckVcdLbVirtualServerDestroy(params["VirtualServerName"].(string)),
 		Steps: []resource.TestStep{
-			resource.TestStep{ // step 0
+			resource.TestStep{ // step 1
 				Config: configText,
 				Check: resource.ComposeAggregateTestCheckFunc(
+					cachedId.cacheTestResourceFieldValue("vcd_network_routed_v2.net1", "id"),
 					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "name", "nsxt-routed-test-initial"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "description", "NSX-T routed network test OpenAPI"),
+					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "edge_gateway_id"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "gateway", "1.1.1.1"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "prefix_length", "24"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "static_ip_pool.#", "1"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
+						"start_address": "1.1.1.10",
+						"end_address":   "1.1.1.20",
+					}),
+				),
+			},
+			resource.TestStep{ // step 2
+				Config: configText2,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					cachedId.testCheckCachedResourceFieldValue("vcd_network_routed_v2.net1", "id"),
+					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "name", t.Name()),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "description", "Updated"),
+					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "edge_gateway_id"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "gateway", "1.1.1.1"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "prefix_length", "24"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "static_ip_pool.#", "3"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
+						"start_address": "1.1.1.10",
+						"end_address":   "1.1.1.20",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
+						"start_address": "1.1.1.40",
+						"end_address":   "1.1.1.50",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
+						"start_address": "1.1.1.60",
+						"end_address":   "1.1.1.70",
+					}),
 				),
 			},
 
 			// Check that import works
-			resource.TestStep{ // step 1
+			resource.TestStep{ // step 3
 				ResourceName:      "vcd_network_routed_v2.net1",
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: importStateIdOrgNsxtVdcObject(testConfig, t.Name()),
 			},
+
+			resource.TestStep{ // step 4
+				Config: configText3,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					cachedId.testCheckCachedResourceFieldValue("vcd_network_routed_v2.net1", "id"),
+					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "name", t.Name()),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "description", "Updated"),
+					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "edge_gateway_id"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "gateway", "1.1.1.1"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "prefix_length", "24"),
+					resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "static_ip_pool.#", "0"),
+				),
+			},
 		},
 	})
 }
 
-const TestAccVcdNetworkRoutedV2NsxtStep0 = `
+const TestAccVcdNetworkRoutedV2NsxtStep1 = `
 data "vcd_nsxt_edgegateway" "existing" {
   org  = "{{.Org}}"
   vdc  = "{{.Vdc}}"
@@ -172,7 +230,7 @@ data "vcd_nsxt_edgegateway" "existing" {
 resource "vcd_network_routed_v2" "net1" {
   org  = "{{.Org}}"
   vdc  = "{{.Vdc}}"
-  name = "{{.NetworkName}}"
+  name = "nsxt-routed-test-initial"
   description = "NSX-T routed network test OpenAPI"
 
   edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
@@ -184,5 +242,60 @@ resource "vcd_network_routed_v2" "net1" {
 	start_address = "1.1.1.10"
     end_address = "1.1.1.20"
   }
+}
+`
+
+const TestAccVcdNetworkRoutedV2NsxtStep2 = `
+data "vcd_nsxt_edgegateway" "existing" {
+  org  = "{{.Org}}"
+  vdc  = "{{.Vdc}}"
+  name = "{{.EdgeGw}}"
+}
+
+resource "vcd_network_routed_v2" "net1" {
+  org  = "{{.Org}}"
+  vdc  = "{{.Vdc}}"
+  name = "{{.NetworkName}}"
+  description = "Updated"
+
+  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
+
+  gateway = "1.1.1.1"
+  prefix_length = 24
+
+  static_ip_pool {
+	start_address = "1.1.1.10"
+    end_address = "1.1.1.20"
+  }
+
+  static_ip_pool {
+	start_address = "1.1.1.40"
+    end_address = "1.1.1.50"
+  }
+
+  static_ip_pool {
+	start_address = "1.1.1.60"
+    end_address = "1.1.1.70"
+  }
+}
+`
+
+const TestAccVcdNetworkRoutedV2NsxtStep3 = `
+data "vcd_nsxt_edgegateway" "existing" {
+  org  = "{{.Org}}"
+  vdc  = "{{.Vdc}}"
+  name = "{{.EdgeGw}}"
+}
+
+resource "vcd_network_routed_v2" "net1" {
+  org  = "{{.Org}}"
+  vdc  = "{{.Vdc}}"
+  name = "{{.NetworkName}}"
+  description = "Updated"
+
+  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
+
+  gateway = "1.1.1.1"
+  prefix_length = 24
 }
 `

@@ -42,7 +42,7 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
-				Description: "Edge gateway name in which Routed network is located",
+				Description: "Edge gateway ID in which Routed network should be located",
 			},
 			"name": &schema.Schema{
 				Type:        schema.TypeString,
