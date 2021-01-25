@@ -18,15 +18,8 @@ func TestAccVcdNetworkRoutedV2NsxvInterfaceTypes(t *testing.T) {
 		"EdgeGw":        testConfig.Networking.EdgeGateway,
 		"InterfaceType": "internal",
 		"NetworkName":   t.Name(),
-		// "Tags": "lb lbVirtualServer",
+		"Tags":          "network",
 	}
-
-	// interface_type = "INTERNAL"
-	// interface_type = "SUBINTERFACE"
-	// interface_type = "TRUNK"
-	// interface_type = "UPLINK"
-	// interface_type = "DISTRIBUTED"
-	// INTERNAL UPLINK TRUNK SUBINTERFACE
 
 	configText := templateFill(testAccVcdNetworkRoutedV2Nsxv, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 0: %s", configText)
@@ -63,13 +56,6 @@ func TestAccVcdNetworkRoutedV2NsxvInterfaceTypes(t *testing.T) {
 					resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
 				),
 			},
-			// resource.TestStep{ // step 0
-			// 	Config: configText2,
-			// 	Check: resource.ComposeAggregateTestCheckFunc(
-			// 		resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
-			// 	),
-			// },
-
 			// Check that import works
 			resource.TestStep{ // step 1
 				ResourceName:      "vcd_network_routed_v2.net1",

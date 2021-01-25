@@ -51,7 +51,7 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 			},
 			"description": &schema.Schema{
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				Description: "Network description",
 			},
 			"interface_type": &schema.Schema{
@@ -151,7 +151,7 @@ func resourceVcdNetworkRoutedV2Update(ctx context.Context, d *schema.ResourceDat
 		return diag.FromErr(err)
 	}
 
-	// Add ID to the new type
+	// Explicitly add ID to the new type because function `getOpenApiOrgVdcNetworkType` only sets other fields
 	networkType.ID = d.Id()
 
 	_, err = orgNetwork.Update(networkType)
@@ -172,7 +172,7 @@ func resourceVcdNetworkRoutedV2Read(ctx context.Context, d *schema.ResourceData,
 	}
 
 	orgNetwork, err := vdc.GetOpenApiOrgVdcNetworkById(d.Id())
-	// If object is not found -
+	// If object is not found - unset ID
 	if govcd.ContainsNotFound(err) {
 		d.SetId("")
 		return nil
@@ -252,9 +252,12 @@ func setOpenApiOrgVdcNetworkData(d *schema.ResourceData, orgVdcNetwork *types.Op
 	_ = d.Set("name", orgVdcNetwork.Name)
 	_ = d.Set("description", orgVdcNetwork.Description)
 	// Check if values are not empty
-	_ = d.Set("edge_gateway_id", orgVdcNetwork.Connection.RouterRef.ID)
-	_ = d.Set("interface_type", orgVdcNetwork.Connection.ConnectionType)
+	if orgVdcNetwork.Connection != nil {
+		_ = d.Set("edge_gateway_id", orgVdcNetwork.Connection.RouterRef.ID)
+		_ = d.Set("interface_type", orgVdcNetwork.Connection.ConnectionType)
+	}
 
+	// Only one subnet can be defined although the structure accepts slice
 	_ = d.Set("gateway", orgVdcNetwork.Subnets.Values[0].Gateway)
 	_ = d.Set("prefix_length", orgVdcNetwork.Subnets.Values[0].PrefixLength)
 	_ = d.Set("dns1", orgVdcNetwork.Subnets.Values[0].DNSServer1)
