@@ -119,9 +119,10 @@ func TestAccVcdNetworkRoutedV2Nsxt(t *testing.T) {
 
 	// String map to fill the template
 	var params = StringMap{
-		"Org":    testConfig.VCD.Org,
-		"Vdc":    testConfig.Nsxt.Vdc,
-		"EdgeGw": testConfig.Nsxt.EdgeGateway,
+		"Org":         testConfig.VCD.Org,
+		"Vdc":         testConfig.Nsxt.Vdc,
+		"EdgeGw":      testConfig.Nsxt.EdgeGateway,
+		"NetworkName": t.Name(),
 		// "Tags": "lb lbVirtualServer",
 	}
 
@@ -151,12 +152,12 @@ func TestAccVcdNetworkRoutedV2Nsxt(t *testing.T) {
 			},
 
 			// Check that import works
-			// resource.TestStep{ // step 1
-			// 	ResourceName:      "vcd_lb_virtual_server.http",
-			// 	ImportState:       true,
-			// 	ImportStateVerify: true,
-			// 	ImportStateIdFunc: importStateIdEdgeGatewayObject(testConfig, testConfig.Networking.EdgeGateway, t.Name()),
-			// },
+			resource.TestStep{ // step 1
+				ResourceName:      "vcd_network_routed_v2.net1",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdOrgNsxtVdcObject(testConfig, t.Name()),
+			},
 		},
 	})
 }
@@ -171,15 +172,8 @@ data "vcd_nsxt_edgegateway" "existing" {
 resource "vcd_network_routed_v2" "net1" {
   org  = "{{.Org}}"
   vdc  = "{{.Vdc}}"
-  name = "TestRoutedNsxt"
+  name = "{{.NetworkName}}"
   description = "NSX-T routed network test OpenAPI"
-
-  // interface_type = "INTERNAL"
-  // interface_type = "SUBINTERFACE"
-  // interface_type = "TRUNK"
-  // interface_type = "UPLINK"
-  // interface_type = "DISTRIBUTED"
-  // INTERNAL UPLINK TRUNK SUBINTERFACE
 
   edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
 
