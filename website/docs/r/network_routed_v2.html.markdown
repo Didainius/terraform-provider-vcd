@@ -40,6 +40,38 @@ resource "vcd_network_routed_v2" "nsxt-backed" {
 }
 ```
 
+## Example Usage (NSX-T backed routed Org VDC network and a DHCP pool)
+
+```hcl
+resource "vcd_network_routed_v2" "parent-network" {
+  name = "nsxt-routed-dhcp"
+
+  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
+
+  gateway = "7.1.1.1"
+  prefix_length = 24
+
+  static_ip_pool {
+    start_address = "7.1.1.10"
+    end_address   = "7.1.1.20"
+  }
+}
+
+resource "vcd_nsxt_network_dhcp" "pools" {
+  org_network_id = vcd_network_routed_v2.parent-network.id
+  
+  pool {
+    start_address = "7.1.1.100"
+    end_address   = "7.1.1.110"
+  }
+
+  pool {
+    start_address = "7.1.1.111"
+    end_address   = "7.1.1.112"
+  }
+}
+```
+
 ## Example Usage (NSX-V backed routed Org VDC network using `subinterface` NIC)
 
 ```hcl
@@ -86,7 +118,7 @@ The following arguments are supported:
 <a id="ip-pools"></a>
 ## IP Pools
 
-Static IP Pools and DHCP Pools support the following attributes:
+Static IP Pools support the following attributes:
 
 * `start_address` - (Required) The first address in the IP Range
 * `end_address` - (Required) The final address in the IP Range
