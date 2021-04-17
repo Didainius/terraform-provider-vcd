@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
@@ -59,19 +60,41 @@ func resourceVcdSecurityGroup() *schema.Resource {
 					Type: schema.TypeString,
 				},
 			},
-			"member_vm_ids": {
+			"member_vms": {
 				Type:        schema.TypeSet,
 				Computed:    true,
 				Description: "Set of VM IDs",
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+				Elem:        nsxtFirewallGroupMemberVms,
 			},
 		},
 	}
 }
 
-// resourceVcdSecurityGroupCreate
+var nsxtFirewallGroupMemberVms = &schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"vm_id": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Member VM ID",
+		},
+		"vm_name": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Member VM Name",
+		},
+		"vapp_id": {
+			Type:     schema.TypeString,
+			Optional: true, Computed: true,
+			Description: "Parent vApp name (if exists) for member VM",
+		},
+		"vapp_name": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Parent vApp ID (if exists) for member VM",
+		},
+	},
+}
+
 func resourceVcdSecurityGroupCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	vcdClient.lockParentEdgeGtw(d)
@@ -82,7 +105,7 @@ func resourceVcdSecurityGroupCreate(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf(errorRetrievingOrgAndVdc, err)
 	}
 
-	fwGroup := getNsxtFirewallGroupType(d)
+	fwGroup := getNsxtSecurityGroupType(d)
 
 	createdFwGroup, err := vdc.CreateNsxtFirewallGroup(fwGroup)
 	if err != nil {
@@ -91,10 +114,9 @@ func resourceVcdSecurityGroupCreate(ctx context.Context, d *schema.ResourceData,
 
 	d.SetId(createdFwGroup.NsxtFirewallGroup.ID)
 
-	return nil
+	return resourceVcdSecurityGroupRead(ctx, d, meta)
 }
 
-// resourceVcdSecurityGroupUpdate
 func resourceVcdSecurityGroupUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	vcdClient.lockParentEdgeGtw(d)
@@ -110,7 +132,7 @@ func resourceVcdSecurityGroupUpdate(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("error getting NSX-T Security Group: %s", err)
 	}
 
-	updateFwGroup := getNsxtFirewallGroupType(d)
+	updateFwGroup := getNsxtSecurityGroupType(d)
 	// Inject existing ID for update
 	updateFwGroup.ID = d.Id()
 
@@ -119,14 +141,11 @@ func resourceVcdSecurityGroupUpdate(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("error updating NSX-T Security Group '%s': %s", fwGroup.NsxtFirewallGroup.Name, err)
 	}
 
-	return nil
+	return resourceVcdSecurityGroupRead(ctx, d, meta)
 }
 
-// resourceVcdSecurityGroupRead
 func resourceVcdSecurityGroupRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-	vcdClient.lockParentEdgeGtw(d)
-	defer vcdClient.unLockParentEdgeGtw(d)
 
 	_, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
@@ -135,18 +154,34 @@ func resourceVcdSecurityGroupRead(ctx context.Context, d *schema.ResourceData, m
 
 	fwGroup, err := vdc.GetNsxtFirewallGroupById(d.Id())
 	if err != nil {
-		return diag.Errorf("error getting NSX-T Security Group: %s", err)
+		if govcd.ContainsNotFound(err) {
+			d.SetId("")
+			return nil
+		}
+		return diag.Errorf("error getting NSX-T Security Group with ID '%s': %s", d.Id(), err)
 	}
 
-	err = setNsxtFirewallGroupData(d, fwGroup.NsxtFirewallGroup)
+	err = setNsxtSecurityGroupData(d, fwGroup.NsxtFirewallGroup)
 	if err != nil {
 		return diag.Errorf("error reading NSX-T Security Group: %s", err)
+	}
+
+	// time.Sleep(60 * time.Second)
+
+	// A separate GET call is required to get all associated VMs
+	associatedVms, err := fwGroup.GetAssociatedVms()
+	if err != nil {
+		return diag.Errorf("error getting associated VMs for Security Group '%s': %s", fwGroup.NsxtFirewallGroup.Name, err)
+	}
+
+	err = setNsxtSecurityGroupAssociatedVmsData(d, associatedVms)
+	if err != nil {
+		return diag.Errorf("error getting associated VMs for Security Group '%s': %s", fwGroup.NsxtFirewallGroup.Name, err)
 	}
 
 	return nil
 }
 
-// resourceVcdSecurityGroupDelete
 func resourceVcdSecurityGroupDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	vcdClient.lockParentEdgeGtw(d)
@@ -199,26 +234,25 @@ func resourceVcdSecurityGroupImport(ctx context.Context, d *schema.ResourceData,
 		return nil, fmt.Errorf("unable to find Edge Gateway '%s': %s", edgeGatewayName, err)
 	}
 
-	firewallGroup, err := edgeGateway.GetNsxtFirewallGroupByName(securityGroupName)
+	securityGroup, err := edgeGateway.GetNsxtFirewallGroupByName(securityGroupName, types.FirewallGroupTypeSecurityGroup)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find Security Group '%s': %s", edgeGatewayName, err)
 	}
 
-	if !firewallGroup.IsSecurityGroup() {
+	if !securityGroup.IsSecurityGroup() {
 		return nil, fmt.Errorf("Firewall Group '%s' is not a Security Group, but '%s'",
-			firewallGroup.NsxtFirewallGroup.Name, firewallGroup.NsxtFirewallGroup.Type)
+			securityGroup.NsxtFirewallGroup.Name, securityGroup.NsxtFirewallGroup.Type)
 	}
 
 	_ = d.Set("org", orgName)
 	_ = d.Set("vdc", vdcName)
 	_ = d.Set("edge_gateway_id", edgeGateway.EdgeGateway.ID)
-	d.SetId(firewallGroup.NsxtFirewallGroup.ID)
+	d.SetId(securityGroup.NsxtFirewallGroup.ID)
 
 	return []*schema.ResourceData{d}, nil
 }
 
-func setNsxtFirewallGroupData(d *schema.ResourceData, fw *types.NsxtFirewallGroup) error {
-
+func setNsxtSecurityGroupData(d *schema.ResourceData, fw *types.NsxtFirewallGroup) error {
 	_ = d.Set("name", fw.Name)
 	_ = d.Set("description", fw.Description)
 
@@ -237,22 +271,37 @@ func setNsxtFirewallGroupData(d *schema.ResourceData, fw *types.NsxtFirewallGrou
 	}
 
 	return nil
-
 }
 
-func getNsxtFirewallGroupType(d *schema.ResourceData) *types.NsxtFirewallGroup {
+func setNsxtSecurityGroupAssociatedVmsData(d *schema.ResourceData, fw []*types.NsxtFirewallGroupMemberVms) error {
+	memberVmSlice := make([]interface{}, len(fw))
+	for index, vmAssociation := range fw {
+		singleVm := make(map[string]interface{})
+
+		if vmAssociation.VmRef != nil {
+			singleVm["vm_id"] = vmAssociation.VmRef.ID
+			singleVm["vm_name"] = vmAssociation.VmRef.Name
+		}
+
+		if vmAssociation.VappRef != nil {
+			singleVm["vapp_id"] = vmAssociation.VappRef.ID
+			singleVm["vapp_name"] = vmAssociation.VappRef.Name
+		}
+
+		memberVmSlice[index] = singleVm
+	}
+	memberVmSet := schema.NewSet(schema.HashResource(nsxtFirewallGroupMemberVms), memberVmSlice)
+
+	return d.Set("member_vms", memberVmSet)
+}
+
+func getNsxtSecurityGroupType(d *schema.ResourceData) *types.NsxtFirewallGroup {
 	fwGroup := &types.NsxtFirewallGroup{
-		// ID:          "",
 		Name:        d.Get("name").(string),
 		Description: d.Get("description").(string),
-		// IpAddresses: []string{},
-		// Members: []types.OpenApi Reference{},
-		OwnerRef: &types.OpenApiReference{
+		EdgeGatewayRef: &types.OpenApiReference{
 			ID: d.Get("edge_gateway_id").(string),
 		},
-		// EdgeGatewayRef: &types.OpenApiReference{
-		// 	ID: d.Get("edge_gateway_id").(string),
-		// },
 		Type: types.FirewallGroupTypeSecurityGroup,
 	}
 
