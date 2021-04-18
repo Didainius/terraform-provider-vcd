@@ -87,7 +87,7 @@ data "vcd_nsxt_edgegateway" "existing" {
 }
 `
 
-const testAccNsxtSecurityGroupEmpty = testAccNsxtSecurityGroupPrereqs + `
+const testAccNsxtSecurityGroupEmpty = testAccNsxtSecurityGroupPrereqsEmpty + `
 resource "vcd_nsxt_security_group" "group1" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
@@ -99,7 +99,7 @@ resource "vcd_nsxt_security_group" "group1" {
 }
 `
 
-const testAccNsxtSecurityGroupEmpty2 = testAccNsxtSecurityGroupPrereqs + `
+const testAccNsxtSecurityGroupEmpty2 = testAccNsxtSecurityGroupPrereqsEmpty + `
 resource "vcd_nsxt_security_group" "group1" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
