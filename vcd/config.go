@@ -426,9 +426,29 @@ func (cli *VCDClient) GetEdgeGateway(orgName, vdcName, edgeGwName string) (eg *g
 	return eg, nil
 }
 
-// GetNsxtEdgeGateway gets an NSX-T Edge Gateway when you don't need org or vdc for other purposes
-func (cli *VCDClient) GetNsxtEdgeGateway(orgName, vdcName, edgeGwId string) (eg *govcd.NsxtEdgeGateway, err error) {
+// GetNsxtEdgeGateway gets an NSX-T Edge Gateway when you don't need Org or VDC for other purposes
+func (cli *VCDClient) GetNsxtEdgeGateway(orgName, vdcName, edgeGwName string) (eg *govcd.NsxtEdgeGateway, err error) {
 
+	if edgeGwName == "" {
+		return nil, fmt.Errorf("empty NSX-T Edge Gateway name provided")
+	}
+	_, vdc, err := cli.GetOrgAndVdc(orgName, vdcName)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving Org and VDC: %s", err)
+	}
+	eg, err = vdc.GetNsxtEdgeGatewayByName(edgeGwName)
+
+	if err != nil {
+		if os.Getenv("GOVCD_DEBUG") != "" {
+			return nil, fmt.Errorf(fmt.Sprintf("(%s) [%s] ", edgeGwName, callFuncName())+errorUnableToFindEdgeGateway, err)
+		}
+		return nil, fmt.Errorf(errorUnableToFindEdgeGateway, err)
+	}
+	return eg, nil
+}
+
+// GetNsxtEdgeGatewayById gets an NSX-T Edge Gateway when you don't need Org or VDC for other purposes
+func (cli *VCDClient) GetNsxtEdgeGatewayById(orgName, vdcName, edgeGwId string) (eg *govcd.NsxtEdgeGateway, err error) {
 	if edgeGwId == "" {
 		return nil, fmt.Errorf("empty NSX-T Edge Gateway ID provided")
 	}
@@ -470,7 +490,7 @@ func (cli *VCDClient) GetNsxtEdgeGatewayFromResourceById(d *schema.ResourceData,
 	orgName := d.Get("org").(string)
 	vdcName := d.Get("vdc").(string)
 	edgeGatewayId := d.Get(edgeGatewayFieldName).(string)
-	egw, err := cli.GetNsxtEdgeGateway(orgName, vdcName, edgeGatewayId)
+	egw, err := cli.GetNsxtEdgeGatewayById(orgName, vdcName, edgeGatewayId)
 	if err != nil {
 		if os.Getenv("GOVCD_DEBUG") != "" {
 			return nil, fmt.Errorf("(%s) [%s] : %s", edgeGatewayId, callFuncName(), err)
