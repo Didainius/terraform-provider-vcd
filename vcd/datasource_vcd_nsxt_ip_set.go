@@ -117,4 +117,24 @@ func (cli *VCDClient) GetNsxtEdgeGatewayById(orgName, vdcName, edgeGwId string) 
 	return eg, nil
 }
 
+// GetNsxtEdgeGateway gets an NSX-T Edge Gateway when you don't need Org or VDC for other purposes
+func (cli *VCDClient) GetNsxtEdgeGateway(orgName, vdcName, edgeGwName string) (eg *govcd.NsxtEdgeGateway, err error) {
+
+	if edgeGwName == "" {
+		return nil, fmt.Errorf("empty NSX-T Edge Gateway name provided")
+	}
+	_, vdc, err := cli.GetOrgAndVdc(orgName, vdcName)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving Org and VDC: %s", err)
+	}
+	eg, err = vdc.GetNsxtEdgeGatewayByName(edgeGwName)
+
+	if err != nil {
+		if os.Getenv("GOVCD_DEBUG") != "" {
+			return nil, fmt.Errorf(fmt.Sprintf("(%s) [%s] ", edgeGwName, callFuncName())+errorUnableToFindEdgeGateway, err)
+		}
+		return nil, fmt.Errorf(errorUnableToFindEdgeGateway, err)
+	}
+	return eg, nil
+}
 // EOF ===================== To be removed before merge (will come from Security Group PR) ===========
