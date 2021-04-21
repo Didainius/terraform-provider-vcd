@@ -64,7 +64,6 @@ func resourceVcdNsxtIpSet() *schema.Resource {
 	}
 }
 
-
 func resourceVcdNsxtIpSetCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	vcdClient.lockParentEdgeGtw(d)
@@ -133,7 +132,7 @@ func resourceVcdNsxtIpSetRead(ctx context.Context, d *schema.ResourceData, meta 
 
 	err = setNsxtIpSetData(d, ipSet.NsxtFirewallGroup)
 	if err != nil {
-		return diag.Errorf("error reading NSX-T IP Set: %s", err)
+		return diag.Errorf("error setting NSX-T IP Set: %s", err)
 	}
 
 	return nil
@@ -217,7 +216,7 @@ func setNsxtIpSetData(d *schema.ResourceData, ipSetType *types.NsxtFirewallGroup
 	ipSetSet := schema.NewSet(schema.HashSchema(&schema.Schema{Type: schema.TypeString}), ipSetInterface)
 
 	err := d.Set("ip_addresses", ipSetSet)
-	if err !=nil {
+	if err != nil {
 		return fmt.Errorf("error settings 'ip_addresses': %s", err)
 	}
 
@@ -235,7 +234,7 @@ func getNsxtIpSetType(d *schema.ResourceData) *types.NsxtFirewallGroup {
 	}
 
 	if ipAddresses, isSet := d.GetOk("ip_addresses"); isSet {
-		ipSet.IpAddresses =  convertSchemaSetToSliceOfStrings(ipAddresses.(*schema.Set))
+		ipSet.IpAddresses = convertSchemaSetToSliceOfStrings(ipAddresses.(*schema.Set))
 	}
 
 	return ipSet
