@@ -264,7 +264,7 @@ resource "vcd_nsxt_ip_set" "set1" {
 	    "10.10.10.0/24",
 	    "11.11.11.1-11.11.11.2",
 	    "2001:db8::/48",
-		"2001:db6:0:0:0:0:0:0-2001:db6:0:ffff:ffff:ffff:ffff:ffff",
+	    "2001:db6:0:0:0:0:0:0-2001:db6:0:ffff:ffff:ffff:ffff:ffff",
 	]
 }
 `
@@ -280,7 +280,7 @@ resource "vcd_nsxt_ip_set" "set1" {
 
   ip_addresses = [
 	    "12.12.12.1",
-		"2001:db6:0:0:0:0:0:0-2001:db6:0:ffff:ffff:ffff:ffff:ffff",
+	    "2001:db6:0:0:0:0:0:0-2001:db6:0:ffff:ffff:ffff:ffff:ffff",
 	]
 }
 `
