@@ -137,4 +137,5 @@ func (cli *VCDClient) GetNsxtEdgeGateway(orgName, vdcName, edgeGwName string) (e
 	}
 	return eg, nil
 }
+
 // EOF ===================== To be removed before merge (will come from Security Group PR) ===========
