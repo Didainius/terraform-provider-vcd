@@ -144,7 +144,8 @@ func resourceVcdIndependentDiskCreate(d *schema.ResourceData, meta interface{}) 
 	if sizeProvided {
 		diskCreateParams = &types.DiskCreateParams{Disk: &types.Disk{
 			Name: diskName,
-			Size: int64(size.(int) * 1024 * 1024),
+			//Size: int64(size.(int) * 1024 * 1024),
+			SizeMb: int64(size.(int)),
 		}}
 	}
 
@@ -254,15 +255,11 @@ func resourceVcdIndependentDiskRead(d *schema.ResourceData, meta interface{}) er
 }
 
 func setMainData(d *schema.ResourceData, disk *govcd.Disk) {
-	sizeInMb := int64(0)
-	if disk.Disk.Size != 0 && disk.Disk.Size >= 1024*1024 {
-		sizeInMb = disk.Disk.Size / 1024 / 1024
-	}
 	d.SetId(disk.Disk.Id)
 	_ = d.Set("name", disk.Disk.Name)
 	_ = d.Set("description", disk.Disk.Description)
 	_ = d.Set("storage_profile", disk.Disk.StorageProfile.Name)
-	_ = d.Set("size_in_mb", sizeInMb)
+	_ = d.Set("size_in_mb", disk.Disk.SizeMb)
 	_ = d.Set("bus_type", busTypesFromValues[disk.Disk.BusType])
 	_ = d.Set("bus_sub_type", busSubTypesFromValues[disk.Disk.BusSubType])
 	_ = d.Set("iops", disk.Disk.Iops)
@@ -390,7 +387,7 @@ func listDisksForImport(meta interface{}, orgName, vdcName, diskName string) ([]
 	fmt.Fprintln(writer, "No\tID\tName\tDescription\tSize")
 	fmt.Fprintln(writer, "--\t--\t----\t------\t----")
 	for index, disk := range *disks {
-		fmt.Fprintf(writer, "%d\t%s\t%s\t%s\t%d\n", (index + 1), disk.Disk.Id, disk.Disk.Name, disk.Disk.Description, disk.Disk.Size)
+		fmt.Fprintf(writer, "%d\t%s\t%s\t%s\t%d\n", (index + 1), disk.Disk.Id, disk.Disk.Name, disk.Disk.Description, disk.Disk.SizeMb)
 	}
 	writer.Flush()
 
