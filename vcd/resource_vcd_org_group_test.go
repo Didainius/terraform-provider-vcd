@@ -246,7 +246,7 @@ resource "vcd_vapp_vm" "ldap-container" {
 			done
 			systemctl enable docker
 			systemctl start docker
-			docker run --name ldap-server --restart=always --privileged -d -p 389:389 rroemhild/test-openldap
+			docker run --name ldap-server --restart=always -d -p 389:10389 rroemhild/test-openldap
 		} &
 		EOT
   }
