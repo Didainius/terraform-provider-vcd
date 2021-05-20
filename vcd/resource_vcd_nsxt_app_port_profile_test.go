@@ -8,7 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-func TestAccVcdNsxtAppPortProfile(t *testing.T) {
+// TestAccVcdNsxtAppPortProfileTenant tests possible options for
+func TestAccVcdNsxtAppPortProfileTenant(t *testing.T) {
 	preTestChecks(t)
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
@@ -29,8 +30,12 @@ func TestAccVcdNsxtAppPortProfile(t *testing.T) {
 		"Tags":        "network",
 	}
 
-	configText := templateFill(testAccVcdNsxtAppPortProfileStep1, params)
-	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText)
+	configText1 := templateFill(testAccVcdNsxtAppPortProfileTenantStep1, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText1)
+
+	params["FuncName"] = t.Name() + "-step2"
+	configText2 := templateFill(testAccVcdNsxtAppPortProfileTenantStep2, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
 
 	//params["FuncName"] = t.Name() + "-step2"
 	//configText2 := templateFill(TestAccVcdNetworkRoutedV2NsxtStep2, params)
@@ -49,56 +54,46 @@ func TestAccVcdNsxtAppPortProfile(t *testing.T) {
 		//CheckDestroy:      testAccCheckOpenApiVcdNetworkDestroy(testConfig.Nsxt.Vdc, t.Name()),
 		Steps: []resource.TestStep{
 			resource.TestStep{ // step 1
-				Config: configText,
+				Config: configText1,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					//resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
-					//	"start_address": "1.1.1.10",
-					//	"end_address":   "1.1.1.20",
-					//}),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "TENANT"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+						"protocol": "ICMPv4",
+					}),
 				),
 			},
-			//resource.TestStep{ // step 2
-			//	Config: configText2,
-			//	Check: resource.ComposeAggregateTestCheckFunc(
-			//		cachedId.testCheckCachedResourceFieldValue("vcd_network_routed_v2.net1", "id"),
-			//		resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "id"),
-			//		resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "name", t.Name()),
-			//		resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "description", "Updated"),
-			//		resource.TestCheckResourceAttrSet("vcd_network_routed_v2.net1", "edge_gateway_id"),
-			//		resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "gateway", "1.1.1.1"),
-			//		resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "prefix_length", "24"),
-			//		resource.TestCheckResourceAttr("vcd_network_routed_v2.net1", "static_ip_pool.#", "3"),
-			//		resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
-			//			"start_address": "1.1.1.10",
-			//			"end_address":   "1.1.1.20",
-			//		}),
-			//
-			//		resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
-			//			"start_address": "1.1.1.40",
-			//			"end_address":   "1.1.1.50",
-			//		}),
-			//
-			//		resource.TestCheckTypeSetElemNestedAttrs("vcd_network_routed_v2.net1", "static_ip_pool.*", map[string]string{
-			//			"start_address": "1.1.1.60",
-			//			"end_address":   "1.1.1.70",
-			//		}),
-			//	),
-			//},
-			//
-			//// Check that import works
-			//resource.TestStep{ // step 3
-			//	ResourceName:      "vcd_network_routed_v2.net1",
-			//	ImportState:       true,
-			//	ImportStateVerify: true,
-			//	ImportStateIdFunc: importStateIdOrgNsxtVdcObject(testConfig, t.Name()),
-			//},
+			resource.TestStep{ // step 1
+				Config: configText2,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "TENANT"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+						"protocol": "ICMPv6",
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+						"protocol": "TCP",
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+						"protocol": "UDP",
+					}),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "2000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "2010-2020"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "12345"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "65000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "40000-60000"),
+				),
+			},
 		},
 	})
 	postTestChecks(t)
 }
 
-const testAccVcdNsxtAppPortProfileStep1 = `
+const testAccVcdNsxtAppPortProfileTenantStep1 = `
 resource "vcd_nsxt_app_port_profile" "LDAP" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
@@ -113,83 +108,27 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
 }
 `
 
-//
-//const TestAccVcdNetworkRoutedV2NsxtStep1 = `
-//data "vcd_nsxt_edgegateway" "existing" {
-//  org  = "{{.Org}}"
-//  vdc  = "{{.NsxtVdc}}"
-//  name = "{{.EdgeGw}}"
-//}
-//
-//resource "vcd_network_routed_v2" "net1" {
-//  org  = "{{.Org}}"
-//  vdc  = "{{.NsxtVdc}}"
-//  name = "nsxt-routed-test-initial"
-//  description = "NSX-T routed network test OpenAPI"
-//
-//  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
-//
-//  gateway = "1.1.1.1"
-//  prefix_length = 24
-//
-//  static_ip_pool {
-//	start_address = "1.1.1.10"
-//    end_address = "1.1.1.20"
-//  }
-//}
-//`
-//
-//const TestAccVcdNetworkRoutedV2NsxtStep2 = `
-//data "vcd_nsxt_edgegateway" "existing" {
-//  org  = "{{.Org}}"
-//  vdc  = "{{.NsxtVdc}}"
-//  name = "{{.EdgeGw}}"
-//}
-//
-//resource "vcd_network_routed_v2" "net1" {
-//  org  = "{{.Org}}"
-//  vdc  = "{{.NsxtVdc}}"
-//  name = "{{.NetworkName}}"
-//  description = "Updated"
-//
-//  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
-//
-//  gateway = "1.1.1.1"
-//  prefix_length = 24
-//
-//  static_ip_pool {
-//	start_address = "1.1.1.10"
-//    end_address = "1.1.1.20"
-//  }
-//
-//  static_ip_pool {
-//	start_address = "1.1.1.40"
-//    end_address = "1.1.1.50"
-//  }
-//
-//  static_ip_pool {
-//	start_address = "1.1.1.60"
-//    end_address = "1.1.1.70"
-//  }
-//}
-//`
-//
-//const TestAccVcdNetworkRoutedV2NsxtStep3 = `
-//data "vcd_nsxt_edgegateway" "existing" {
-//  org  = "{{.Org}}"
-//  vdc  = "{{.NsxtVdc}}"
-//  name = "{{.EdgeGw}}"
-//}
-//
-//resource "vcd_network_routed_v2" "net1" {
-//  org  = "{{.Org}}"
-//  vdc  = "{{.NsxtVdc}}"
-//  name = "{{.NetworkName}}"
-//  description = "Updated"
-//
-//  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
-//
-//  gateway = "1.1.1.1"
-//  prefix_length = 24
-//}
-//`
+const testAccVcdNsxtAppPortProfileTenantStep2 = `
+resource "vcd_nsxt_app_port_profile" "LDAP" {
+  org  = "{{.Org}}"
+  vdc  = "{{.NsxtVdc}}"
+  name = "ldap_app_prof-updated"
+
+  description = "Application port profile for LDAP-updated"
+  scope = "TENANT"
+  
+  app_port {
+    protocol = "ICMPv6"
+  }
+
+  app_port {
+    protocol = "TCP"
+	port = ["2000", "2010-2020", "12345", "65000"]
+  }
+
+  app_port {
+    protocol = "UDP"
+    port = ["40000-60000"]
+  }
+}
+`

@@ -3,6 +3,7 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -66,10 +67,11 @@ func resourceVcdNsxtAppPortProfile() *schema.Resource {
 				Description: "Application Port Profile description",
 			},
 			"scope": &schema.Schema{
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-				Description: "Scope - 'PROVIDER' or 'TENANT'",
+				Type:         schema.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				Description:  "Scope - 'PROVIDER' or 'TENANT'",
+				ValidateFunc: validation.StringInSlice([]string{"PROVIDER", "TENANT"}, false),
 			},
 			"nsxt_manager_id": &schema.Schema{
 				Type:        schema.TypeString,
@@ -196,7 +198,7 @@ func getNsxtAppPortProfileType(d *schema.ResourceData, org *govcd.Org, vdc *govc
 	}
 
 	scope := d.Get("scope").(string)
-	switch scope {
+	switch strings.ToUpper(scope) {
 	case types.ApplicationPortProfileScopeProvider:
 		appPortProfileConfig.Scope = scope
 		nsxtManagerUrn := d.Get("nsxt_manager_id").(string)
