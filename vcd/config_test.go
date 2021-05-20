@@ -155,6 +155,9 @@ type TestConfig struct {
 		UploadProgress  bool   `json:"uploadProgress,omitempty"`
 		MediaName       string `json:"mediaName,omitempty"`
 	} `json:"media"`
+	Misc struct {
+		LdapContainer string `json:"ldapContainer,omitempty"`
+	} `json:"misc"`
 	// Data used to create a new environment, in addition to the regular test configuration file
 	TestEnvBuild struct {
 		Gateway                      string `json:"gateway"`                      // Gateway for external network
