@@ -3,7 +3,10 @@
 package vcd
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
@@ -41,7 +44,14 @@ func TestAccVcdNsxtAppPortProfileTenant(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: testAccProviders,
 		PreCheck:          func() { testAccPreCheck(t) },
-		//CheckDestroy:      testAccCheckOpenApiVcdNetworkDestroy(testConfig.Nsxt.Vdc, t.Name()),
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
+		),
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configText1,
@@ -128,7 +138,14 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: testAccProviders,
 		PreCheck:          func() { testAccPreCheck(t) },
-		//CheckDestroy:      testAccCheckOpenApiVcdNetworkDestroy(testConfig.Nsxt.Vdc, t.Name()),
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
+			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
+		),
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configText1,
@@ -298,3 +315,20 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
   }
 }
 `
+
+func testAccCheckOpenApiNsxtAppPortDestroy(appPortProfileName, scope string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		conn := testAccProvider.Meta().(*VCDClient)
+		org, err := conn.GetOrgByName(testConfig.VCD.Org)
+		if err != nil {
+			return fmt.Errorf(errorRetrievingVdcFromOrg, vdcName, testConfig.VCD.Org, err)
+		}
+
+		_, err = org.GetNsxtAppPortProfileByName(appPortProfileName, scope)
+		if err == nil {
+			return fmt.Errorf("'%s' Application Port Profile still exists", appPortProfileName)
+		}
+
+		return nil
+	}
+}
