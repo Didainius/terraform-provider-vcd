@@ -42,22 +42,22 @@ func TestAccVcdNsxtAppPortProfileTenant(t *testing.T) {
 		ProviderFactories: testAccProviders,
 		PreCheck:          func() { testAccPreCheck(t) },
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "SYSTEM"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "SYSTEM"),
 		),
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configText1,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "TENANT"),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.custom", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "name", "custom_app_prof"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "description", "Application port profile for custom"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "scope", "TENANT"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "ICMPv4",
 					}),
 				),
@@ -65,34 +65,34 @@ func TestAccVcdNsxtAppPortProfileTenant(t *testing.T) {
 			resource.TestStep{
 				Config: configText2,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof-updated"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP-updated"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "TENANT"),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.custom", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "name", "custom_app_prof-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "description", "Application port profile for custom-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "scope", "TENANT"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "ICMPv6",
 					}),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "TCP",
 					}),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "UDP",
 					}),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "2000"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "2010-2020"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "12345"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "65000"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "40000-60000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "2000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "2010-2020"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "12345"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "65000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "40000-60000"),
 				),
 			},
 			resource.TestStep{
 				Config: configText3,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof-updated"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", ""),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "TENANT"),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.custom", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "name", "custom_app_prof-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "description", ""),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "scope", "TENANT"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "ICMPv6",
 					}),
 				),
@@ -140,22 +140,22 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 		ProviderFactories: testAccProviders,
 		PreCheck:          func() { testAccPreCheck(t) },
 		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "PROVIDER"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "TENANT"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
-			testAccCheckOpenApiNsxtAppPortDestroy("ldap_app_prof", "SYSTEM"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "PROVIDER"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "TENANT"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "SYSTEM"),
+			testAccCheckOpenApiNsxtAppPortDestroy("custom_app_prof", "SYSTEM"),
 		),
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configText1,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "PROVIDER"),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.custom", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "name", "custom_app_prof"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "description", "Application port profile for custom"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "scope", "PROVIDER"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "ICMPv4",
 					}),
 				),
@@ -163,49 +163,49 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 			resource.TestStep{
 				Config: configText11,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "PROVIDER"),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.custom", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "name", "custom_app_prof"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "description", "Application port profile for custom"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "scope", "PROVIDER"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "ICMPv4",
 					}),
-					resource.TestCheckResourceAttrPair("vcd_nsxt_app_port_profile.LDAP", "id", "data.vcd_nsxt_app_port_profile.LDAP", "id"),
+					resource.TestCheckResourceAttrPair("vcd_nsxt_app_port_profile.custom", "id", "data.vcd_nsxt_app_port_profile.custom", "id"),
 					// GET does not return nsxt_manager_id in the object therefore it cannot be set during read
-					resourceFieldsEqual("vcd_nsxt_app_port_profile.LDAP", "data.vcd_nsxt_app_port_profile.LDAP", []string{"nsxt_manager_id"}),
+					resourceFieldsEqual("vcd_nsxt_app_port_profile.custom", "data.vcd_nsxt_app_port_profile.custom", []string{"nsxt_manager_id"}),
 				),
 			},
 			resource.TestStep{
 				Config: configText2,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof-updated"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP-updated"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "PROVIDER"),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.custom", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "name", "custom_app_prof-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "description", "Application port profile for custom-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "scope", "PROVIDER"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "ICMPv6",
 					}),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "TCP",
 					}),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "UDP",
 					}),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "2000"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "2010-2020"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "12345"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "65000"),
-					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.LDAP", "app_port.*.port.*", "40000-60000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "2000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "2010-2020"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "12345"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "65000"),
+					resource.TestCheckTypeSetElemAttr("vcd_nsxt_app_port_profile.custom", "app_port.*.port.*", "40000-60000"),
 				),
 			},
 			resource.TestStep{
 				Config: configText3,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof-updated"),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", ""),
-					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "PROVIDER"),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.custom", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "name", "custom_app_prof-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "description", ""),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.custom", "scope", "PROVIDER"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.custom", "app_port.*", map[string]string{
 						"protocol": "ICMPv6",
 					}),
 				),
@@ -216,12 +216,12 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 }
 
 const testAccVcdNsxtAppPortProfileTenantStep1 = `
-resource "vcd_nsxt_app_port_profile" "LDAP" {
+resource "vcd_nsxt_app_port_profile" "custom" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
-  name = "ldap_app_prof"
+  name = "custom_app_prof"
 
-  description = "Application port profile for LDAP"
+  description = "Application port profile for custom"
   scope       = "TENANT"
 
   app_port {
@@ -231,12 +231,12 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
 `
 
 const testAccVcdNsxtAppPortProfileTenantStep2 = `
-resource "vcd_nsxt_app_port_profile" "LDAP" {
+resource "vcd_nsxt_app_port_profile" "custom" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
-  name = "ldap_app_prof-updated"
+  name = "custom_app_prof-updated"
 
-  description = "Application port profile for LDAP-updated"
+  description = "Application port profile for custom-updated"
   scope       = "TENANT"
 
   app_port {
@@ -256,10 +256,10 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
 `
 
 const testAccVcdNsxtAppPortProfileTenantStep3 = `
-resource "vcd_nsxt_app_port_profile" "LDAP" {
+resource "vcd_nsxt_app_port_profile" "custom" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
-  name = "ldap_app_prof-updated"
+  name = "custom_app_prof-updated"
 
   scope = "TENANT"
 
@@ -276,12 +276,12 @@ data "vcd_nsxt_manager" "main" {
 `
 
 const testAccVcdNsxtAppPortProfileProviderStep1 = testAccVcdNsxtAppPortProfileProviderNsxtManagerDS + `
-resource "vcd_nsxt_app_port_profile" "LDAP" {
+resource "vcd_nsxt_app_port_profile" "custom" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
-  name = "ldap_app_prof"
+  name = "custom_app_prof"
 
-  description     = "Application port profile for LDAP"
+  description     = "Application port profile for custom"
   scope           = "PROVIDER"
   nsxt_manager_id = data.vcd_nsxt_manager.main.id
 
@@ -292,13 +292,13 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
 `
 
 const testAccVcdNsxtAppPortProfileProviderStep1AndDS = testAccVcdNsxtAppPortProfileProviderStep1 + `
-data "vcd_nsxt_app_port_profile" "LDAP" {
+data "vcd_nsxt_app_port_profile" "custom" {
   org   = "{{.Org}}"
   vdc   = "{{.NsxtVdc}}"
-  name  = "ldap_app_prof"
+  name  = "custom_app_prof"
   scope = "PROVIDER"
 
-  //description     = "Application port profile for LDAP"
+  //description     = "Application port profile for custom"
   //nsxt_manager_id = data.vcd_nsxt_manager.main.id
   //
   //app_port {
@@ -308,12 +308,12 @@ data "vcd_nsxt_app_port_profile" "LDAP" {
 `
 
 const testAccVcdNsxtAppPortProfileProviderStep2 = testAccVcdNsxtAppPortProfileProviderNsxtManagerDS + `
-resource "vcd_nsxt_app_port_profile" "LDAP" {
+resource "vcd_nsxt_app_port_profile" "custom" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
-  name = "ldap_app_prof-updated"
+  name = "custom_app_prof-updated"
 
-  description     = "Application port profile for LDAP-updated"
+  description     = "Application port profile for custom-updated"
   scope           = "PROVIDER"
   nsxt_manager_id = data.vcd_nsxt_manager.main.id
 
@@ -334,10 +334,10 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
 `
 
 const testAccVcdNsxtAppPortProfileProviderStep3 = testAccVcdNsxtAppPortProfileProviderNsxtManagerDS + `
-resource "vcd_nsxt_app_port_profile" "LDAP" {
+resource "vcd_nsxt_app_port_profile" "custom" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
-  name = "ldap_app_prof-updated"
+  name = "custom_app_prof-updated"
 
   scope           = "PROVIDER"
   nsxt_manager_id = data.vcd_nsxt_manager.main.id
