@@ -80,9 +80,9 @@ func resourceVcdNsxtAppPortProfile() *schema.Resource {
 				Description: "ID of NSX-T manager. Only required for 'PROVIDER' scope",
 			},
 			"app_port": {
+				Type:     schema.TypeSet,
 				Required: true,
 				MinItems: 1,
-				Type:     schema.TypeSet,
 				Elem:     appPortDefinition,
 			},
 		},
@@ -227,6 +227,9 @@ func getNsxtAppPortProfileType(d *schema.ResourceData, org *govcd.Org, vdc *govc
 	return appPortProfileConfig
 }
 
+// setNsxtAppPortProfileData sets Terraform schema from types.NsxtAppPortProfile
+//
+// Note. GET queries do not return nsxt_manager_ir for SYSTEM scope therefore it cannot be read.
 func setNsxtAppPortProfileData(d *schema.ResourceData, appPortProfile *types.NsxtAppPortProfile) error {
 	_ = d.Set("name", appPortProfile.Name)
 	_ = d.Set("description", appPortProfile.Description)

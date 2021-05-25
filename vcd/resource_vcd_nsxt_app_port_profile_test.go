@@ -3,10 +3,7 @@
 package vcd
 
 import (
-	"fmt"
 	"testing"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
@@ -127,6 +124,10 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 	configText1 := templateFill(testAccVcdNsxtAppPortProfileProviderStep1, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText1)
 
+	params["FuncName"] = t.Name() + "-step11"
+	configText11 := templateFill(testAccVcdNsxtAppPortProfileProviderStep1AndDS, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText11)
+
 	params["FuncName"] = t.Name() + "-step2"
 	configText2 := templateFill(testAccVcdNsxtAppPortProfileProviderStep2, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
@@ -157,6 +158,21 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
 						"protocol": "ICMPv4",
 					}),
+				),
+			},
+			resource.TestStep{
+				Config: configText11,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("vcd_nsxt_app_port_profile.LDAP", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "name", "ldap_app_prof"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "description", "Application port profile for LDAP"),
+					resource.TestCheckResourceAttr("vcd_nsxt_app_port_profile.LDAP", "scope", "PROVIDER"),
+					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_app_port_profile.LDAP", "app_port.*", map[string]string{
+						"protocol": "ICMPv4",
+					}),
+					resource.TestCheckResourceAttrPair("vcd_nsxt_app_port_profile.LDAP", "id", "data.vcd_nsxt_app_port_profile.LDAP", "id"),
+					// GET does not return nsxt_manager_id in the object therefore it cannot be set during read
+					resourceFieldsEqual("vcd_nsxt_app_port_profile.LDAP", "data.vcd_nsxt_app_port_profile.LDAP", []string{"nsxt_manager_id"}),
 				),
 			},
 			resource.TestStep{
@@ -275,6 +291,22 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
 }
 `
 
+const testAccVcdNsxtAppPortProfileProviderStep1AndDS = testAccVcdNsxtAppPortProfileProviderStep1 + `
+data "vcd_nsxt_app_port_profile" "LDAP" {
+  org   = "{{.Org}}"
+  vdc   = "{{.NsxtVdc}}"
+  name  = "ldap_app_prof"
+  scope = "PROVIDER"
+
+  //description     = "Application port profile for LDAP"
+  //nsxt_manager_id = data.vcd_nsxt_manager.main.id
+  //
+  //app_port {
+  //  protocol = "ICMPv4"
+  //}
+}
+`
+
 const testAccVcdNsxtAppPortProfileProviderStep2 = testAccVcdNsxtAppPortProfileProviderNsxtManagerDS + `
 resource "vcd_nsxt_app_port_profile" "LDAP" {
   org  = "{{.Org}}"
@@ -315,20 +347,3 @@ resource "vcd_nsxt_app_port_profile" "LDAP" {
   }
 }
 `
-
-func testAccCheckOpenApiNsxtAppPortDestroy(appPortProfileName, scope string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		conn := testAccProvider.Meta().(*VCDClient)
-		org, err := conn.GetOrgByName(testConfig.VCD.Org)
-		if err != nil {
-			return fmt.Errorf(errorRetrievingVdcFromOrg, vdcName, testConfig.VCD.Org, err)
-		}
-
-		_, err = org.GetNsxtAppPortProfileByName(appPortProfileName, scope)
-		if err == nil {
-			return fmt.Errorf("'%s' Application Port Profile still exists", appPortProfileName)
-		}
-
-		return nil
-	}
-}
