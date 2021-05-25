@@ -3,8 +3,6 @@ package vcd
 import (
 	"context"
 
-	"github.com/vmware/go-vcloud-director/v2/govcd"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -87,10 +85,6 @@ func datasourceVcdNsxtAppPortProfileRead(ctx context.Context, d *schema.Resource
 
 	appPortProfile, err := org.GetNsxtAppPortProfileByName(d.Get("name").(string), d.Get("scope").(string))
 	if err != nil {
-		if govcd.ContainsNotFound(err) {
-			d.SetId("")
-			return nil
-		}
 		return diag.Errorf("error getting NSX-T Application Port Profile with ID '%s': %s", d.Id(), err)
 	}
 

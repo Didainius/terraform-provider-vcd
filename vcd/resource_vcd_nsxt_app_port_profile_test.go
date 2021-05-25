@@ -97,6 +97,13 @@ func TestAccVcdNsxtAppPortProfileTenant(t *testing.T) {
 					}),
 				),
 			},
+			resource.TestStep{
+				ResourceName:      "vcd_nsxt_app_port_profile.custom",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// This will generate import name of org_name.vdc_name.app_profile_name
+				ImportStateIdFunc: importStateIdOrgNsxtVdcObject(testConfig, "custom_app_prof-updated"),
+			},
 		},
 	})
 	postTestChecks(t)
@@ -112,7 +119,7 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 
 	vcdClient := createTemporaryVCDConnection()
 	if !vcdClient.Client.IsSysAdmin {
-		t.Skip(t.Name() + " only System Administrator can Provider scoped Application Port Profiles")
+		t.Skip(t.Name() + " only System Administrator can nProvider scoped Application Port Profiles")
 	}
 
 	if vcdClient.Client.APIVCDMaxVersionIs("< 34.0") {
@@ -129,17 +136,17 @@ func TestAccVcdNsxtAppPortProfileProvider(t *testing.T) {
 	configText1 := templateFill(testAccVcdNsxtAppPortProfileProviderStep1, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText1)
 
-	params["FuncName"] = t.Name() + "-step11"
-	configText11 := templateFill(testAccVcdNsxtAppPortProfileProviderStep1AndDS, params)
-	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText11)
-
 	params["FuncName"] = t.Name() + "-step2"
-	configText2 := templateFill(testAccVcdNsxtAppPortProfileProviderStep2, params)
-	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
+	configText11 := templateFill(testAccVcdNsxtAppPortProfileProviderStep1AndDS, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText11)
 
 	params["FuncName"] = t.Name() + "-step3"
+	configText2 := templateFill(testAccVcdNsxtAppPortProfileProviderStep2, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 3: %s", configText2)
+
+	params["FuncName"] = t.Name() + "-step4"
 	configText3 := templateFill(testAccVcdNsxtAppPortProfileProviderStep3, params)
-	debugPrintf("#[DEBUG] CONFIGURATION for step 3: %s", configText3)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 4: %s", configText3)
 
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: testAccProviders,
@@ -297,18 +304,12 @@ resource "vcd_nsxt_app_port_profile" "custom" {
 `
 
 const testAccVcdNsxtAppPortProfileProviderStep1AndDS = testAccVcdNsxtAppPortProfileProviderStep1 + `
+# skip-binary-test: data source test only works in acceptance tests
 data "vcd_nsxt_app_port_profile" "custom" {
   org   = "{{.Org}}"
   vdc   = "{{.NsxtVdc}}"
   name  = "custom_app_prof"
   scope = "PROVIDER"
-
-  //description     = "Application port profile for custom"
-  //nsxt_manager_id = data.vcd_nsxt_manager.main.id
-  //
-  //app_port {
-  //  protocol = "ICMPv4"
-  //}
 }
 `
 

@@ -2,6 +2,7 @@ package vcd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,10 +17,9 @@ import (
 var appPortDefinition = &schema.Resource{
 	Schema: map[string]*schema.Schema{
 		"protocol": {
-			Required:         true,
-			Type:             schema.TypeString,
-			ValidateFunc:     validation.StringInSlice([]string{"ICMPv4", "ICMPv6", "TCP", "UDP"}, true),
-			DiffSuppressFunc: suppressCase,
+			Required:     true,
+			Type:         schema.TypeString,
+			ValidateFunc: validation.StringInSlice([]string{"ICMPv4", "ICMPv6", "TCP", "UDP"}, false),
 		},
 		"port": {
 			Optional:    true,
@@ -91,9 +91,10 @@ func resourceVcdNsxtAppPortProfile() *schema.Resource {
 
 func resourceVcdNsxtAppPortProfileCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-	// Leaving this commented to remember and check if locks are required at NSX-T manager or Org VDC
-	//vcdClient.lockParentEdgeGtw(d)
-	//defer vcdClient.unLockParentEdgeGtw(d)
+	err := validateScope(d.Get("scope").(string), d.Get("nsxt_manager_id").(string))
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
 	org, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
@@ -115,6 +116,11 @@ func resourceVcdNsxtAppPortProfileCreate(ctx context.Context, d *schema.Resource
 func resourceVcdNsxtAppPortProfileUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 
+	err := validateScope(d.Get("scope").(string), d.Get("nsxt_manager_id").(string))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
 	org, vdc, err := vcdClient.GetOrgAndVdcFromResource(d)
 	if err != nil {
 		return diag.Errorf(errorRetrievingOrgAndVdc, err)
@@ -122,7 +128,7 @@ func resourceVcdNsxtAppPortProfileUpdate(ctx context.Context, d *schema.Resource
 
 	appPortProfile, err := org.GetNsxtAppPortProfileById(d.Id())
 	if err != nil {
-		return diag.Errorf("error getting NSX-T Security Group: %s", err)
+		return diag.Errorf("error getting NSX-T Application Port Profile: %s", err)
 	}
 
 	updateappPortProfile := getNsxtAppPortProfileType(d, org, vdc)
@@ -186,8 +192,48 @@ func resourceVcdNsxtAppPortProfileDelete(ctx context.Context, d *schema.Resource
 }
 
 func resourceVcdNsxtAppPortProfileImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	resourceURI := strings.Split(d.Id(), ImportSeparator)
+	if len(resourceURI) != 3 {
+		return nil, fmt.Errorf("resource name must be specified as org-name.vdc-name.app_port_profile_name")
+	}
+	orgName, vdcName, appPortProfileName := resourceURI[0], resourceURI[1], resourceURI[2]
+
+	vcdClient := meta.(*VCDClient)
+	org, err := vcdClient.GetOrgByName(orgName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find Org %s: %s", orgName, err)
+	}
+	vdc, err := org.GetVDCByName(vdcName, false)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find VDC %s: %s", vdcName, err)
+	}
+
+	if !vdc.IsNsxt() {
+		return nil, errors.New("security groups are only supported by NSX-T VDCs")
+	}
+
+	// Search scope
+	searchScope := "TENANT"
+
+	nsxtAppPortProfile, err := org.GetNsxtAppPortProfileByName(appPortProfileName, searchScope)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find Application Port Profile '%s': %s", appPortProfileName, err)
+	}
+
+	_ = d.Set("org", orgName)
+	_ = d.Set("vdc", vdcName)
+
+	d.SetId(nsxtAppPortProfile.NsxtAppPortProfile.ID)
 
 	return []*schema.ResourceData{d}, nil
+}
+
+func validateScope(scope, nsxtManagerId string) error {
+	if scope == types.ApplicationPortProfileScopeProvider && nsxtManagerId == "" {
+		return fmt.Errorf("scope 'PROVIDER' requires NSX-T Manager ID")
+	}
+
+	return nil
 }
 
 func getNsxtAppPortProfileType(d *schema.ResourceData, org *govcd.Org, vdc *govcd.Vdc) *types.NsxtAppPortProfile {
@@ -197,14 +243,11 @@ func getNsxtAppPortProfileType(d *schema.ResourceData, org *govcd.Org, vdc *govc
 		Scope:       d.Get("scope").(string),
 	}
 
-	scope := d.Get("scope").(string)
-	switch strings.ToUpper(scope) {
+	switch strings.ToUpper(appPortProfileConfig.Scope) {
 	case types.ApplicationPortProfileScopeProvider:
-		appPortProfileConfig.Scope = scope
 		nsxtManagerUrn := d.Get("nsxt_manager_id").(string)
 		appPortProfileConfig.ContextEntityId = nsxtManagerUrn
 	case types.ApplicationPortProfileScopeTenant:
-		appPortProfileConfig.Scope = scope
 		appPortProfileConfig.OrgRef = &types.OpenApiReference{ID: org.Org.ID}
 		appPortProfileConfig.ContextEntityId = vdc.Vdc.ID
 	}
