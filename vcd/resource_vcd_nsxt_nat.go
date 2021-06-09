@@ -2,7 +2,12 @@ package vcd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"text/tabwriter"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 
@@ -76,7 +81,7 @@ func resourceVcdNsxtNat() *schema.Resource {
 			"dnat_external_port": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "",
+				Description: "External port number or port range when doing DNAT port forwarding from external to internal. Leaving it empty will allow traffic on any port for the given IPs selected will be translated",
 			},
 			"snat_destination_addresses": &schema.Schema{
 				Type:        schema.TypeString,
@@ -96,9 +101,10 @@ func resourceVcdNsxtNat() *schema.Resource {
 				Description: "",
 			},
 			"firewall_match": &schema.Schema{
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "VCD 10.2.2+ Determines how the firewall matches the address during NATing if firewall stage is not skipped. Below are valid values.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  "VCD 10.2.2+ Determines how the firewall matches the address during NATing if firewall stage is not skipped. Below are valid values.",
+				ValidateFunc: validation.StringInSlice([]string{"MATCH_INTERNAL_ADDRESS", "MATCH_EXTERNAL_ADDRESS", "BYPASS"}, false),
 			},
 			"priority": &schema.Schema{
 				Type:        schema.TypeInt,
@@ -204,9 +210,7 @@ func resourceVcdNsxtNatRead(ctx context.Context, d *schema.ResourceData, meta in
 	return nil
 }
 
-// resourceVcdNsxtNatDelete
 func resourceVcdNsxtNatDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-
 	vcdClient := meta.(*VCDClient)
 	vcdClient.lockParentEdgeGtw(d)
 	defer vcdClient.unLockParentEdgeGtw(d)
@@ -235,13 +239,60 @@ func resourceVcdNsxtNatDelete(ctx context.Context, d *schema.ResourceData, meta 
 	return nil
 }
 
-// resourceVcdNsxtNatImport
 func resourceVcdNsxtNatImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	resourceURI := strings.Split(d.Id(), ImportSeparator)
+	if len(resourceURI) != 4 {
+		return nil, fmt.Errorf("resource name must be specified as org-name.vdc-name.edge_gateway_name.nat_rule_name")
+	}
+	orgName, vdcName, edgeGatewayName, natRuleIdentifier := resourceURI[0], resourceURI[1], resourceURI[2], resourceURI[3]
+
+	vcdClient := meta.(*VCDClient)
+	org, err := vcdClient.GetAdminOrg(orgName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find Org %s: %s", orgName, err)
+	}
+	vdc, err := org.GetVDCByName(vdcName, false)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find VDC %s: %s", vdcName, err)
+	}
+
+	if !vdc.IsNsxt() {
+		return nil, errors.New("vcd_nsxt_nat_rule is only supported by NSX-T VDCs")
+	}
+
+	edgeGateway, err := vdc.GetNsxtEdgeGatewayByName(edgeGatewayName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find Edge Gateway '%s': %s", edgeGatewayName, err)
+	}
+
+	natRule, err := edgeGateway.GetNatRuleByName(natRuleIdentifier)
+	if govcd.ContainsNotFound(err) {
+		natRule, err = edgeGateway.GetNatRuleById(natRuleIdentifier)
+	}
+
+	// Error occurred and it is not ErrorEntityNotFound. This means - more than one rule found and we should dump a list
+	// of rules with their IDs so that one can pick ID
+	if err != nil && !govcd.ContainsNotFound(err) {
+		allRules, err2 := edgeGateway.GetAllNatRules(nil)
+		if err2 != nil {
+			return nil, fmt.Errorf("error getting list of all NAT rules: %s", err)
+		}
+		dumpNatRulesToScreen(natRuleIdentifier, allRules)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to find NAT Rule '%s': %s", edgeGatewayName, err)
+	}
+
+	_ = d.Set("org", orgName)
+	_ = d.Set("vdc", vdcName)
+	_ = d.Set("edge_gateway_id", edgeGateway.EdgeGateway.ID)
+	d.SetId(natRule.NsxtNatRule.ID)
+
 	return []*schema.ResourceData{d}, nil
 }
 
 func getNsxtNatType(d *schema.ResourceData, client *VCDClient) (*types.NsxtNatRule, error) {
-
 	firewallMatch, firewallMatchOk := d.GetOk("firewall_match")
 	priority, priorityOk := d.GetOk("priority")
 
@@ -282,7 +333,10 @@ func setNsxtNatRuleData(rule *types.NsxtNatRule, d *schema.ResourceData, client 
 	_ = d.Set("description", rule.Description)
 	_ = d.Set("external_addresses", rule.ExternalAddresses)
 	_ = d.Set("internal_addresses", rule.InternalAddresses)
-	_ = d.Set("dnat_external_port", rule.DnatExternalPort)
+	// VCD versions before 10.2.2 do not return this field even after it is set and that would always report incorrect plan
+	if client.Client.APIVCDMaxVersionIs(">= 35.2") {
+		_ = d.Set("dnat_external_port", rule.DnatExternalPort)
+	}
 	_ = d.Set("snat_destination_addresses", rule.SnatDestinationAddresses)
 	_ = d.Set("logging", rule.Logging)
 	_ = d.Set("enabled", rule.Enabled)
@@ -294,4 +348,25 @@ func setNsxtNatRuleData(rule *types.NsxtNatRule, d *schema.ResourceData, client 
 	}
 
 	return nil
+}
+
+func dumpNatRulesToScreen(name string, allRules []*govcd.NsxtNatRule) {
+	stdout := getTerraformStdout()
+
+	fmt.Fprintf(stdout, "# The following NAT rules with Name '%s' are available\n", name)
+	fmt.Fprintf(stdout, "# Please use ID instead of Name in import path to pick exact rule\n")
+
+	w := tabwriter.NewWriter(stdout, 1, 1, 1, ' ', 0)
+	fmt.Fprintln(w, "ID\tName\tRule Type\tInternal Addresses\tExternal Addresses")
+	for _, rule := range allRules {
+		if rule.NsxtNatRule.Name != name {
+			continue
+		}
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			rule.NsxtNatRule.ID, rule.NsxtNatRule.Name, rule.NsxtNatRule.RuleType, rule.NsxtNatRule.InternalAddresses,
+			rule.NsxtNatRule.ExternalAddresses)
+	}
+
+	w.Flush()
 }
