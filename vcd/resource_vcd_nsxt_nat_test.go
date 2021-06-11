@@ -73,9 +73,9 @@ func TestAccVcdNsxtNatRuleDnat(t *testing.T) {
 					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.dnat", "rule_type", "DNAT"),
 					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.dnat", "description", "updated-description"),
 					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.dnat", "external_addresses"),
+					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.dnat", "app_port_profile_id"),
 					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.dnat", "internal_addresses", "11.11.11.0/32"),
 					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.dnat", "logging", "false"),
-					resource.TestCheckNoResourceAttr("vcd_nsxt_nat_rule.dnat", "app_port_profile_id"),
 					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.dnat", "dnat_external_port", "8888"),
 					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.dnat", "snat_destination_addresses", ""),
 					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.dnat", "enabled", "false"),
@@ -121,6 +121,11 @@ resource "vcd_nsxt_nat_rule" "dnat" {
 `
 
 const testAccNsxtNatDnatStep2 = testAccNsxtSecurityGroupPrereqsEmpty + `
+data "vcd_nsxt_app_port_profile" "custom" {
+  scope = "SYSTEM"
+  name  = "SSH"
+}
+
 resource "vcd_nsxt_nat_rule" "dnat" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
@@ -132,9 +137,10 @@ resource "vcd_nsxt_nat_rule" "dnat" {
   description = "updated-description"
   
   # Using primary_ip from edge gateway
-  external_addresses = tolist(data.vcd_nsxt_edgegateway.existing.subnet)[0].primary_ip
-  internal_addresses = "11.11.11.0/32"
-  dnat_external_port = 8888
+  external_addresses  = tolist(data.vcd_nsxt_edgegateway.existing.subnet)[0].primary_ip
+  internal_addresses  = "11.11.11.0/32"
+  dnat_external_port  = 8888
+  app_port_profile_id = data.vcd_nsxt_app_port_profile.custom.id
   
   logging = false
   enabled = false

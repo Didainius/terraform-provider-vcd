@@ -344,6 +344,9 @@ func setNsxtNatRuleData(rule *types.NsxtNatRule, d *schema.ResourceData, client 
 	_ = d.Set("logging", rule.Logging)
 	_ = d.Set("enabled", rule.Enabled)
 	_ = d.Set("rule_type", rule.RuleType)
+	if rule.ApplicationPortProfile != nil {
+		_ = d.Set("app_port_profile_id", rule.ApplicationPortProfile.ID)
+	}
 
 	if client.Client.APIVCDMaxVersionIs(">= 35.2") {
 		_ = d.Set("firewall_match", rule.FirewallMatch)
