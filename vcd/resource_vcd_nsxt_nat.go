@@ -50,18 +50,19 @@ func resourceVcdNsxtNat() *schema.Resource {
 			"name": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "",
+				Description: "Name of NAT rule",
 			},
 			"rule_type": &schema.Schema{
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-				Description: "",
+				Type:         schema.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				Description:  "",
+				ValidateFunc: validation.StringInSlice([]string{"DNAT", "NO_DNAT", "SNAT", "NO_SNAT"}, false),
 			},
 			"description": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "",
+				Description: "Description of NAT rule",
 			},
 			"external_addresses": &schema.Schema{
 				Type:        schema.TypeString,

@@ -90,11 +90,12 @@ func TestAccVcdNsxtNatRuleDnat(t *testing.T) {
 			},
 			// Try to import by rule UUID
 			resource.TestStep{
-				ResourceName:      "vcd_nsxt_nat_rule.dnat",
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateIdFunc: importStateIdNsxtEdgeGatewayObjectLazyName(testConfig, testConfig.Nsxt.EdgeGateway,
-					func() string { return natRuleId.fieldValue }),
+				ResourceName: "vcd_nsxt_nat_rule.dnat",
+				ImportState:  true,
+				// Not using pre-built complete ID because ID is not known in advance. This field allows to specify
+				// prefix only and the ID itself is automatically suffixed by Terraform test framework
+				ImportStateIdPrefix: testConfig.VCD.Org + ImportSeparator + testConfig.Nsxt.Vdc + ImportSeparator + testConfig.Nsxt.EdgeGateway + ImportSeparator,
+				ImportStateVerify:   true,
 			},
 		},
 	})
@@ -204,8 +205,6 @@ resource "vcd_nsxt_nat_rule" "no-dnat" {
   # Using primary_ip from edge gateway
   external_addresses = tolist(data.vcd_nsxt_edgegateway.existing.subnet)[0].primary_ip
   dnat_external_port = 7777
-
-  # app_port_profile_id = 
 }
 `
 
@@ -222,12 +221,12 @@ func TestAccVcdNsxtNatRuleSnat(t *testing.T) {
 		"Tags":        "network nsxt",
 	}
 
-	configText := templateFill(testAccNsxtNatSnat, params)
-	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText)
+	configText1 := templateFill(testAccNsxtNatSnat, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText1)
 
-	//params["FuncName"] = t.Name() + "-step1"
-	//configText1 := templateFill(testAccNsxtSecurityGroupEmpty2, params)
-	//debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText1)
+	params["FuncName"] = t.Name() + "-step2"
+	configText2 := templateFill(testAccNsxtNatSnat2, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
 
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
@@ -237,20 +236,50 @@ func TestAccVcdNsxtNatRuleSnat(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: testAccProviders,
 		PreCheck:          func() { testAccPreCheck(t) },
-		//CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-		//	testAccCheckNsxtFirewallGroupDestroy(testConfig.Nsxt.Vdc, "test-security-group", types.FirewallGroupTypeSecurityGroup),
-		//	testAccCheckNsxtFirewallGroupDestroy(testConfig.Nsxt.Vdc, "test-security-group-changed", types.FirewallGroupTypeSecurityGroup),
-		//),
+		CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+			testAccCheckNsxtNatRuleDestroy("test-snat-rule"),
+			testAccCheckNsxtNatRuleDestroy("test-snat-rule-updated"),
+		),
 		Steps: []resource.TestStep{
 			resource.TestStep{
-				Config: configText,
+				Config: configText1,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.snat", "id"),
-					//resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "name", "test-security-group"),
-					//resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "description", "test-security-group-description"),
-					//resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_org_network_ids"),
-					//resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_vm_ids"),
+
+					resource.TestMatchResourceAttr("vcd_nsxt_nat_rule.snat", "edge_gateway_id", regexp.MustCompile(`^urn:vcloud:gateway:`)),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "name", "test-snat-rule"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "rule_type", "SNAT"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "description", "description"),
+					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.snat", "external_addresses"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "internal_addresses", "11.11.11.2"),
+					resource.TestCheckNoResourceAttr("vcd_nsxt_nat_rule.snat", "app_port_profile_id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "snat_destination_addresses", "8.8.8.8"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "enabled", "true"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "logging", "true"),
 				),
+			},
+			resource.TestStep{
+				Config: configText2,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.snat", "id"),
+
+					resource.TestMatchResourceAttr("vcd_nsxt_nat_rule.snat", "edge_gateway_id", regexp.MustCompile(`^urn:vcloud:gateway:`)),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "name", "test-snat-rule-updated"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "rule_type", "SNAT"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "description", ""),
+					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.snat", "external_addresses"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "internal_addresses", "10.10.10.2"),
+					resource.TestCheckNoResourceAttr("vcd_nsxt_nat_rule.snat", "app_port_profile_id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "snat_destination_addresses", ""),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "enabled", "true"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.snat", "logging", "false"),
+				),
+			},
+			resource.TestStep{
+				ResourceName:      "vcd_nsxt_nat_rule.snat",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdNsxtEdgeGatewayObject(testConfig, testConfig.Nsxt.EdgeGateway, "test-snat-rule-updated"),
 			},
 		},
 	})
@@ -264,7 +293,7 @@ resource "vcd_nsxt_nat_rule" "snat" {
 	
   edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
 
-  name        = "test-dnat-rule"
+  name        = "test-snat-rule"
   rule_type   = "SNAT"
   description = "description"
   
@@ -273,6 +302,24 @@ resource "vcd_nsxt_nat_rule" "snat" {
   internal_addresses         = "11.11.11.2"
   snat_destination_addresses = "8.8.8.8"
   logging = true
+}
+`
+
+const testAccNsxtNatSnat2 = testAccNsxtSecurityGroupPrereqsEmpty + `
+resource "vcd_nsxt_nat_rule" "snat" {
+  org  = "{{.Org}}"
+  vdc  = "{{.NsxtVdc}}"
+	
+  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
+
+  name        = "test-snat-rule-updated"
+  rule_type   = "SNAT"
+  description = ""
+  
+  # Using primary_ip from edge gateway
+  external_addresses         = tolist(data.vcd_nsxt_edgegateway.existing.subnet)[0].primary_ip
+  internal_addresses         = "10.10.10.2"
+  logging = false
 }
 `
 
@@ -292,10 +339,6 @@ func TestAccVcdNsxtNatRuleNoSnat(t *testing.T) {
 	configText := templateFill(testAccNsxtNatNoSnat, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configText)
 
-	//params["FuncName"] = t.Name() + "-step1"
-	//configText1 := templateFill(testAccNsxtSecurityGroupEmpty2, params)
-	//debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText1)
-
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
 		return
@@ -304,66 +347,56 @@ func TestAccVcdNsxtNatRuleNoSnat(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: testAccProviders,
 		PreCheck:          func() { testAccPreCheck(t) },
-		//CheckDestroy: resource.ComposeAggregateTestCheckFunc(
-		//	testAccCheckNsxtFirewallGroupDestroy(testConfig.Nsxt.Vdc, "test-security-group", types.FirewallGroupTypeSecurityGroup),
-		//	testAccCheckNsxtFirewallGroupDestroy(testConfig.Nsxt.Vdc, "test-security-group-changed", types.FirewallGroupTypeSecurityGroup),
-		//),
+		CheckDestroy:      testAccCheckNsxtNatRuleDestroy("test-no-snat-rule"),
 		Steps: []resource.TestStep{
 			resource.TestStep{
 				Config: configText,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.snat", "id"),
-					//resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "name", "test-security-group"),
-					//resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "description", "test-security-group-description"),
-					//resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_org_network_ids"),
-					//resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_vm_ids"),
+					resource.TestCheckResourceAttrSet("vcd_nsxt_nat_rule.no-snat", "id"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.no-snat", "name", "test-no-snat-rule"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.no-snat", "description", "description"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.no-snat", "rule_type", "NO_SNAT"),
+					resource.TestCheckResourceAttr("vcd_nsxt_nat_rule.no-snat", "internal_addresses", "11.11.11.2"),
 				),
 			},
-			//resource.TestStep{
-			//	Config: configText1,
-			//	Check: resource.ComposeAggregateTestCheckFunc(
-			//		resource.TestMatchResourceAttr("vcd_nsxt_security_group.group1", "id", regexp.MustCompile(`^urn:vcloud:firewallGroup:.*$`)),
-			//		resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "name", "test-security-group-changed"),
-			//		resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "description", ""),
-			//		resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_org_network_ids"),
-			//		resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_vm_ids"),
-			//	),
-			//},
-			//resource.TestStep{
-			//	ResourceName:      "vcd_nsxt_security_group.group1",
-			//	ImportState:       true,
-			//	ImportStateVerify: true,
-			//	ImportStateIdFunc: importStateIdNsxtEdgeGatewayObject(testConfig, testConfig.Nsxt.EdgeGateway, "test-security-group-changed"),
-			//},
+			resource.TestStep{
+				ResourceName:      "vcd_nsxt_nat_rule.no-snat",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: importStateIdNsxtEdgeGatewayObject(testConfig, testConfig.Nsxt.EdgeGateway, "test-no-snat-rule"),
+			},
 		},
 	})
 	postTestChecks(t)
 }
 
 const testAccNsxtNatNoSnat = testAccNsxtSecurityGroupPrereqsEmpty + `
-resource "vcd_nsxt_nat_rule" "snat" {
+resource "vcd_nsxt_nat_rule" "no-snat" {
   org  = "{{.Org}}"
   vdc  = "{{.NsxtVdc}}"
 
   edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
 
-  name        = "test-dnat-rule"
+  name        = "test-no-snat-rule"
   rule_type   = "NO_SNAT"
   description = "description"
   
   # Using primary_ip from edge gateway
-  //external_addresses         = tolist(data.vcd_nsxt_edgegateway.existing.subnet)[0].primary_ip
   internal_addresses         = "11.11.11.2"
-  //snat_destination_addresses = "11.11.11.4"
-  logging = true
 }
 `
 
 // TestAccVcdNsxtNatRuleFirewallMatchPriority explicitly tests support for two new fields introduced in API 35.2 (VCD 10.2.2)
 // firewall_match and priority. For 10.2.2 versions this should work, while for lower versions it should return an error.
+// This test checks both cases - for versions 10.2.2 it expects it working, while for versions < 10.2.2 it expects an error
 func TestAccVcdNsxtNatRuleFirewallMatchPriority(t *testing.T) {
 	preTestChecks(t)
 	skipNoNsxtConfiguration(t)
+
+	if vcdShortTest {
+		t.Skip(acceptanceTestsSkipped)
+		return
+	}
 
 	// expectError must stay nil for versions > 10.2.2, because we expect it to work. For lower versions - it must have
 	// match the runtime validation error
@@ -398,11 +431,6 @@ func TestAccVcdNsxtNatRuleFirewallMatchPriority(t *testing.T) {
 	params["Priority"] = "0"
 	configText3 := templateFill(testAccNsxtNatFirewallMatchPriority, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 3: %s", configText3)
-
-	if vcdShortTest {
-		t.Skip(acceptanceTestsSkipped)
-		return
-	}
 
 	resource.Test(t, resource.TestCase{
 		ProviderFactories: testAccProviders,

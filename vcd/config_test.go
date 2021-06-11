@@ -1095,12 +1095,6 @@ func importStateIdNsxtEdgeGatewayObject(vcd TestConfig, edgeGatewayName, objectN
 	}
 }
 
-// importStateIdNsxtEdgeGatewayObjectLazyName is like importStateIdNsxtEdgeGatewayObject but it accepts a closure for late
-// object name evaluation.
-func importStateIdNsxtEdgeGatewayObjectLazyName(vcd TestConfig, edgeGatewayName string, objectName func() string) resource.ImportStateIdFunc {
-	return importStateIdNsxtEdgeGatewayObject(vcd, edgeGatewayName, objectName())
-}
-
 // Used by all entities that depend on Org + VDC + vApp VM (such as VM internal disks)
 func importStateIdVmObject(orgName, vdcName, vappName, vmName, objectIdentifier string) resource.ImportStateIdFunc {
 	return func(*terraform.State) (string, error) {
