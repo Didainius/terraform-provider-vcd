@@ -103,12 +103,14 @@ func resourceVcdNsxtNat() *schema.Resource {
 			"firewall_match": &schema.Schema{
 				Type:         schema.TypeString,
 				Optional:     true,
+				Computed:     true,
 				Description:  "VCD 10.2.2+ Determines how the firewall matches the address during NATing if firewall stage is not skipped. Below are valid values.",
 				ValidateFunc: validation.StringInSlice([]string{"MATCH_INTERNAL_ADDRESS", "MATCH_EXTERNAL_ADDRESS", "BYPASS"}, false),
 			},
 			"priority": &schema.Schema{
 				Type:        schema.TypeInt,
 				Optional:    true,
+				Computed:    true,
 				Description: "VCD 10.2.2+ If an address has multiple NAT rules, the rule with the highest priority is applied. A lower value means a higher precedence for this rule.",
 			},
 		},
@@ -342,7 +344,7 @@ func setNsxtNatRuleData(rule *types.NsxtNatRule, d *schema.ResourceData, client 
 	_ = d.Set("enabled", rule.Enabled)
 	_ = d.Set("rule_type", rule.RuleType)
 
-	if client.Client.APIVCDMaxVersionIs("< 35.2") {
+	if client.Client.APIVCDMaxVersionIs(">= 35.2") {
 		_ = d.Set("firewall_match", rule.FirewallMatch)
 		_ = d.Set("priority", rule.Priority)
 	}

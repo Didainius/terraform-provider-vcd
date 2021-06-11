@@ -252,22 +252,6 @@ func TestAccVcdNsxtNatRuleSnat(t *testing.T) {
 					//resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_vm_ids"),
 				),
 			},
-			//resource.TestStep{
-			//	Config: configText1,
-			//	Check: resource.ComposeAggregateTestCheckFunc(
-			//		resource.TestMatchResourceAttr("vcd_nsxt_security_group.group1", "id", regexp.MustCompile(`^urn:vcloud:firewallGroup:.*$`)),
-			//		resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "name", "test-security-group-changed"),
-			//		resource.TestCheckResourceAttr("vcd_nsxt_security_group.group1", "description", ""),
-			//		resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_org_network_ids"),
-			//		resource.TestCheckNoResourceAttr("vcd_nsxt_security_group.group1", "member_vm_ids"),
-			//	),
-			//},
-			//resource.TestStep{
-			//	ResourceName:      "vcd_nsxt_security_group.group1",
-			//	ImportState:       true,
-			//	ImportStateVerify: true,
-			//	ImportStateIdFunc: importStateIdNsxtEdgeGatewayObject(testConfig, testConfig.Nsxt.EdgeGateway, "test-security-group-changed"),
-			//},
 		},
 	})
 	postTestChecks(t)
@@ -287,7 +271,7 @@ resource "vcd_nsxt_nat_rule" "snat" {
   # Using primary_ip from edge gateway
   external_addresses         = tolist(data.vcd_nsxt_edgegateway.existing.subnet)[0].primary_ip
   internal_addresses         = "11.11.11.2"
-  snat_destination_addresses = "11.11.11.4"
+  snat_destination_addresses = "8.8.8.8"
   logging = true
 }
 `
