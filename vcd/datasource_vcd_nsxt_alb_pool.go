@@ -71,7 +71,7 @@ func datasourceVcdAlbPool() *schema.Resource {
 						"enabled": &schema.Schema{
 							Type:        schema.TypeBool,
 							Computed:    true,
-							Description: "Shows is the member is enabled or not",
+							Description: "Shows if the member is enabled or not",
 						},
 						"ip_address": {
 							Type:        schema.TypeString,
