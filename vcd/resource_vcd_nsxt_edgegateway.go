@@ -63,14 +63,14 @@ func resourceVcdNsxtEdgeGateway() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			"org": &schema.Schema{
+			"org": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
 				Description: "The name of organization to use, optional if defined at provider " +
 					"level. Useful when connected as sysadmin working across different organizations",
 			},
-			"vdc": &schema.Schema{
+			"vdc": {
 				Type:          schema.TypeString,
 				Optional:      true,
 				Computed:      true,
@@ -78,35 +78,35 @@ func resourceVcdNsxtEdgeGateway() *schema.Resource {
 				ConflictsWith: []string{"owner_id", "starting_vdc_id"},
 				Deprecated:    "This field is deprecated in favor of 'owner_id' which supports both - VDC and VDC group IDs",
 			},
-			"owner_id": &schema.Schema{
+			"owner_id": {
 				Type:          schema.TypeString,
 				Optional:      true,
 				Computed:      true,
 				Description:   "ID of VDC group or VDC",
 				ConflictsWith: []string{"vdc"},
 			},
-			"starting_vdc_id": &schema.Schema{
+			"starting_vdc_id": {
 				Type:          schema.TypeString,
 				Optional:      true,
 				Description:   "ID of VDC group or VDC",
 				ConflictsWith: []string{"vdc"},
 			},
-			"name": &schema.Schema{
+			"name": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "Edge Gateway name",
 			},
-			"description": &schema.Schema{
+			"description": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Edge Gateway description",
 			},
-			"dedicate_external_network": &schema.Schema{
+			"dedicate_external_network": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Description: "Dedicating the External Network will enable Route Advertisement for this Edge Gateway.",
 			},
-			"external_network_id": &schema.Schema{
+			"external_network_id": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "External network ID",
@@ -122,7 +122,7 @@ func resourceVcdNsxtEdgeGateway() *schema.Resource {
 				Computed:    true,
 				Description: "Primary IP address of edge gateway. Read-only (can be specified in specific subnet)",
 			},
-			"edge_cluster_id": &schema.Schema{
+			"edge_cluster_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
@@ -310,7 +310,7 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, vcdClient *VCDClient, isCrea
 	edgeGatewayType := types.OpenAPIEdgeGateway{
 		Name:        d.Get("name").(string),
 		Description: d.Get("description").(string),
-		EdgeGatewayUplinks: []types.EdgeGatewayUplinks{types.EdgeGatewayUplinks{
+		EdgeGatewayUplinks: []types.EdgeGatewayUplinks{{
 			UplinkID:  d.Get("external_network_id").(string),
 			Subnets:   types.OpenAPIEdgeGatewaySubnets{Values: getNsxtEdgeGatewayUplinksType(d)},
 			Dedicated: d.Get("dedicate_external_network").(bool),
