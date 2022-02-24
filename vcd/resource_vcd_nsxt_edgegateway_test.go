@@ -64,7 +64,7 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckVcdNsxtEdgeGatewayDestroy(params["NsxtEdgeGatewayVcd"].(string)),
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config: configText,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
@@ -81,7 +81,7 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 					}),
 				),
 			},
-			resource.TestStep{
+			{
 				Config: configText1,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
@@ -100,7 +100,7 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 					}),
 				),
 			},
-			resource.TestStep{
+			{
 				ResourceName:      "vcd_nsxt_edgegateway.nsxt-edge",
 				ImportState:       true,
 				ImportStateVerify: true,
@@ -122,7 +122,6 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   org                     = "{{.Org}}"
   vdc                     = "{{.NsxtVdc}}"
   name                    = "{{.NsxtEdgeGatewayVcd}}"
-  description             = "Description"
 
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
@@ -299,10 +298,10 @@ func TestAccVcdNsxtEdgeGatewayVdcGroup(t *testing.T) {
 
 		Steps: []resource.TestStep{
 			// initialize new VDC, this done separately as otherwise randomly fail due choose wrong connection
-			resource.TestStep{
+			{
 				Config: configTextPre,
 			},
-			resource.TestStep{
+			{
 				Config: configText2,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
@@ -316,7 +315,7 @@ func TestAccVcdNsxtEdgeGatewayVdcGroup(t *testing.T) {
 					//}),
 				),
 			},
-			resource.TestStep{
+			{
 				Config: configText3,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					// Ignoring total field count '%' and 'starting_vdc_id' because it does not make sense for data source
@@ -324,7 +323,7 @@ func TestAccVcdNsxtEdgeGatewayVdcGroup(t *testing.T) {
 					//stateDumper(),
 				),
 			},
-			resource.TestStep{
+			{
 				Config: configText4,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", regexp.MustCompile(`^urn:vcloud:vdcGroup:`)),
@@ -408,10 +407,11 @@ data "vcd_nsxt_edgegateway" "ds" {
 `
 
 // TestAccVcdNsxtEdgeGatewayVdcGroupMigration tests the following migration scenario
-// Step 1 - sets up prerequisites
+// Step 1 - sets up prerequisites (a VDC Group with 2 VDCs in it)
 // Step 2 - creates an Edge Gateway in a VDC using deprecated `vdc` field
 // Step 3 - updates the Edge Gateway to use `owner_id` field instead of `vdc` field (keeping the same VDC)
 // Step 4 - migrates the Edge Gateway to a VDC group
+// Step 5 - migrates the Edge Gateway to a different VDC than the starting one
 func TestAccVcdNsxtEdgeGatewayVdcGroupMigration(t *testing.T) {
 	preTestChecks(t)
 
@@ -423,43 +423,27 @@ func TestAccVcdNsxtEdgeGatewayVdcGroupMigration(t *testing.T) {
 	//}
 
 	vcdClient := createTemporaryVCDConnection(false)
-	if vcdClient.Client.APIVCDMaxVersionIs("< 35.0") {
-		t.Skip(t.Name() + " requires at least API v35.0 (vCD 10.2+)")
-	}
 
 	if !vcdClient.Client.IsSysAdmin {
 		t.Skip(t.Name() + " only System Administrator can run test of VDC group")
 	}
 
-	if testConfig.Nsxt.Vdc == "" || testConfig.VCD.NsxtProviderVdc.Name == "" ||
-		testConfig.VCD.NsxtProviderVdc.NetworkPool == "" || testConfig.VCD.ProviderVdc.StorageProfile == "" {
-		t.Skip("Variables Nsxt.Vdc, VCD.NsxtProviderVdc.NetworkPool, VCD.NsxtProviderVdc.Name," +
-			" VCD.ProviderVdc.StorageProfile  must be set")
-	}
+	skipNoNsxtConfiguration(t)
 
 	// String map to fill the template
 	var params = StringMap{
 		"Org":                       testConfig.VCD.Org,
-		"VDC":                       testConfig.Nsxt.Vdc,
-		"Name":                      "TestAccVcdVdcGroupResource",
-		"NameUpdated":               "TestAccVcdVdcGroupResourceUpdated",
+		"Name":                      t.Name(),
 		"Description":               "myDescription",
-		"DescriptionUpdate":         "myDescription updated",
 		"ProviderVdc":               testConfig.VCD.NsxtProviderVdc.Name,
 		"NetworkPool":               testConfig.VCD.NsxtProviderVdc.NetworkPool,
-		"Allocated":                 "1024",
-		"Limit":                     "1024",
 		"ProviderVdcStorageProfile": testConfig.VCD.ProviderVdc.StorageProfile,
-		"OrgUser":                   testConfig.TestEnvBuild.OrgUser,
-		"OrgUserPassword":           testConfig.TestEnvBuild.OrgUserPassword,
-		"VcdUrl":                    testConfig.Provider.Url,
-		"OrgUserProvider":           "",
 		"Dfw":                       "false",
 		"DefaultPolicy":             "false",
+		"TestName":                  t.Name(),
 
 		"NsxtEdgeGatewayVcd": t.Name() + "-edge",
 		"ExternalNetwork":    testConfig.Nsxt.ExternalNetwork,
-		"EdgeClusterId":      lookupAvailableEdgeClusterId(t, vcdClient),
 
 		"Tags": "vdcGroup gateway nsxt",
 	}
@@ -480,6 +464,10 @@ func TestAccVcdNsxtEdgeGatewayVdcGroupMigration(t *testing.T) {
 	configText4 := templateFill(edgeVdcGroupMigration3, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 4: %s", configText4)
 
+	params["FuncName"] = t.Name() + "-step5"
+	configText5 := templateFill(edgeVdcGroupMigration4, params)
+	debugPrintf("#[DEBUG] CONFIGURATION for step 5: %s", configText5)
+
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
 		return
@@ -490,69 +478,39 @@ func TestAccVcdNsxtEdgeGatewayVdcGroupMigration(t *testing.T) {
 		PreCheck:          func() { testAccPreCheck(t) },
 
 		Steps: []resource.TestStep{
-			// initialize new VDC, this done separately as otherwise randomly fail due choose wrong connection
-			resource.TestStep{
+			{
+				// Setup prerequisites
 				Config: configTextPre,
 			},
-			resource.TestStep{
+			{
 				Config: configText2,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
-					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "vdc", "newVdc"),
+					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "vdc", fmt.Sprintf("%s-0", t.Name())),
 					resource.TestMatchResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", regexp.MustCompile(`^urn:vcloud:vdc:`)),
-					//resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "dedicate_external_network", "false"),
-					//resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "primary_ip", nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress),
-					//resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*", map[string]string{
-					//	"gateway":       nsxtExtNet.ExternalNetwork.Subnets.Values[0].Gateway,
-					//	"prefix_length": strconv.Itoa(nsxtExtNet.ExternalNetwork.Subnets.Values[0].PrefixLength),
-					//	"primary_ip":    nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
-					//}),
 				),
 			},
-			resource.TestStep{
+			{
 				Config: configText3,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
 					resource.TestMatchResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", regexp.MustCompile(`^urn:vcloud:vdc:`)),
-					//resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "dedicate_external_network", "false"),
-					//resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "primary_ip", nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress),
-					//resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*", map[string]string{
-					//	"gateway":       nsxtExtNet.ExternalNetwork.Subnets.Values[0].Gateway,
-					//	"prefix_length": strconv.Itoa(nsxtExtNet.ExternalNetwork.Subnets.Values[0].PrefixLength),
-					//	"primary_ip":    nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
-					//}),
 				),
 			},
-			resource.TestStep{
+			{
 				Config: configText4,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
 					resource.TestMatchResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", regexp.MustCompile(`^urn:vcloud:vdcGroup:`)),
-					//resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "dedicate_external_network", "false"),
-					//resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "primary_ip", nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress),
-					//resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*", map[string]string{
-					//	"gateway":       nsxtExtNet.ExternalNetwork.Subnets.Values[0].Gateway,
-					//	"prefix_length": strconv.Itoa(nsxtExtNet.ExternalNetwork.Subnets.Values[0].PrefixLength),
-					//	"primary_ip":    nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
-					//}),
 				),
 			},
-			//resource.TestStep{
-			//	Config: configText3,
-			//	Check: resource.ComposeAggregateTestCheckFunc(
-			//		// Ignoring total field count '%' and 'starting_vdc_id' because it does not make sense for data source
-			//		resourceFieldsEqual("vcd_nsxt_edgegateway.nsxt-edge", "data.vcd_nsxt_edgegateway.ds", []string{"starting_vdc_id", "%"}),
-			//		//stateDumper(),
-			//	),
-			//},
-			//resource.TestStep{
-			//	Config: configText4,
-			//	Check: resource.ComposeAggregateTestCheckFunc(
-			//		resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", ""),
-			//		//resourceFieldsEqual("data.vcd_nsxt_edgegateway.ds", "vcd_nsxt_edgegateway.nsxt-edge", nil),
-			//		//stateDumper(),
-			//	),
-			//},
+			{
+				Config: configText5,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
+					resource.TestMatchResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", regexp.MustCompile(`^urn:vcloud:vdc:`)),
+				),
+			},
 		},
 	})
 	postTestChecks(t)
@@ -564,9 +522,9 @@ data "vcd_external_network_v2" "existing-extnet" {
 }
 
 resource "vcd_nsxt_edgegateway" "nsxt-edge" {
-  org          = "{{.Org}}"
-  vdc          = vcd_org_vdc.newVdc.name
-  //owner_id     = vcd_vdc_group.test1.id
+  org = "{{.Org}}"
+  vdc = vcd_org_vdc.newVdc.0.name
+
   name         = "{{.NsxtEdgeGatewayVcd}}"
   description  = "Description"
 
@@ -592,7 +550,7 @@ data "vcd_external_network_v2" "existing-extnet" {
 
 resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   org          = "{{.Org}}"
-  owner_id     = vcd_org_vdc.newVdc.id
+  owner_id     = vcd_org_vdc.newVdc.0.id
   name         = "{{.NsxtEdgeGatewayVcd}}"
   description  = "Description"
 
@@ -637,6 +595,32 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
 }
 `
 
+const edgeVdcGroupMigration4 = testAccVcdVdcGroupNew + `
+data "vcd_external_network_v2" "existing-extnet" {
+	name = "{{.ExternalNetwork}}"
+}
+
+resource "vcd_nsxt_edgegateway" "nsxt-edge" {
+  org         = "{{.Org}}"
+  owner_id    = vcd_org_vdc.newVdc.1.id
+  name        = "{{.NsxtEdgeGatewayVcd}}"
+  description = "Description"
+
+  external_network_id = data.vcd_external_network_v2.existing-extnet.id
+
+  subnet {
+     gateway               = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
+     prefix_length         = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
+
+     primary_ip            = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+     allocated_ips {
+       start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+       end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+     }
+  }
+}
+`
+
 // TestAccVcdNsxtEdgeGatewayVdcUpdateFails checks that it is impossible to update `vdc` field unless it is
 // set to empty (in case of migration to `owner_id` field)
 func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
@@ -661,19 +645,16 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 		"ExternalNetwork":           testConfig.Nsxt.ExternalNetwork,
 		"EdgeClusterId":             lookupAvailableEdgeClusterId(t, vcdClient),
 		"Name":                      "TestAccVcdVdcGroupResource",
-		"Description":               "myDescription",
 		"ProviderVdc":               testConfig.VCD.NsxtProviderVdc.Name,
 		"NetworkPool":               testConfig.VCD.NsxtProviderVdc.NetworkPool,
 		"Allocated":                 "1024",
 		"Limit":                     "1024",
 		"ProviderVdcStorageProfile": testConfig.VCD.ProviderVdc.StorageProfile,
-		"OrgUser":                   testConfig.TestEnvBuild.OrgUser,
-		"OrgUserPassword":           testConfig.TestEnvBuild.OrgUserPassword,
-		"VcdUrl":                    testConfig.Provider.Url,
-		"OrgUserProvider":           "",
 
 		"Tags": "vdcGroup gateway nsxt",
 	}
+
+	params["FuncName"] = t.Name() + "step1"
 	configText1 := templateFill(testAccNsxtEdgeGateway, params)
 
 	params["FuncName"] = t.Name() + "step2"
@@ -693,7 +674,7 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckVcdNsxtEdgeGatewayDestroy(params["NsxtEdgeGatewayVcd"].(string)),
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config: configText1,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
@@ -711,11 +692,11 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 					}),
 				),
 			},
-			resource.TestStep{
+			{
 				Config:      configText2,
 				ExpectError: regexp.MustCompile(`changing 'vdc' field value is not supported`),
 			},
-			resource.TestStep{
+			{
 				Config: configText3,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
@@ -741,13 +722,13 @@ resource "vcd_org_vdc" "newVdc" {
   
 	compute_capacity {
 	  cpu {
-		allocated = "{{.Allocated}}"
-		limit     = "{{.Limit}}"
+		allocated = "1024"
+		limit     = "1024"
 	  }
   
 	  memory {
-		allocated = "{{.Allocated}}"
-		limit     = "{{.Limit}}"
+		allocated = "1024"
+		limit     = "1024"
 	  }
 	}
   

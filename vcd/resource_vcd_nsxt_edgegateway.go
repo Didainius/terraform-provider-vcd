@@ -88,7 +88,7 @@ func resourceVcdNsxtEdgeGateway() *schema.Resource {
 			"starting_vdc_id": {
 				Type:          schema.TypeString,
 				Optional:      true,
-				Description:   "ID of VDC group or VDC",
+				Description:   "Optional ID of starting VDC if the 'owner_id' is a VDC Group",
 				ConflictsWith: []string{"vdc"},
 			},
 			"name": {
