@@ -350,11 +350,10 @@ data "vcd_external_network_v2" "existing-extnet" {
 }
 
 resource "vcd_nsxt_edgegateway" "nsxt-edge" {
-  org          = "{{.Org}}"
-  //vdc          = vcd_org_vdc.newVdc.name
-  owner_id     = vcd_vdc_group.test1.id
-  name         = "{{.NsxtEdgeGatewayVcd}}"
-  description  = "Description"
+  org         = "{{.Org}}"
+  owner_id    = vcd_vdc_group.test1.id
+  name        = "{{.NsxtEdgeGatewayVcd}}"
+  description = "Description"
 
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
@@ -377,10 +376,10 @@ data "vcd_external_network_v2" "existing-extnet" {
 }
 
 resource "vcd_nsxt_edgegateway" "nsxt-edge" {
-  org          = "{{.Org}}"
-  owner_id = vcd_vdc_group.test1.id
-  name         = "{{.NsxtEdgeGatewayVcd}}"
-  description  = "Description"
+  org         = "{{.Org}}"
+  owner_id    = vcd_vdc_group.test1.id
+  name        = "{{.NsxtEdgeGatewayVcd}}"
+  description = "Description"
 
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
@@ -537,10 +536,10 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
   subnet {
-     gateway               = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
-     prefix_length         = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
+     gateway       = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
+     prefix_length = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
 
-     primary_ip            = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+     primary_ip = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      allocated_ips {
        start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
        end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
@@ -567,10 +566,10 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   external_network_id = data.vcd_external_network_v2.existing-extnet.id
 
   subnet {
-     gateway               = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
-     prefix_length         = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
+     gateway       = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
+     prefix_length = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
 
-     primary_ip            = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+     primary_ip = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      allocated_ips {
        start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
        end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
