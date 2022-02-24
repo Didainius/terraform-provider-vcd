@@ -28,9 +28,6 @@ func TestAccVcdNsxtEdgeGateway(t *testing.T) {
 
 	skipNoNsxtConfiguration(t)
 	vcdClient := createTemporaryVCDConnection(false)
-	if vcdClient.Client.APIVCDMaxVersionIs("< 34.0") {
-		t.Skip(t.Name() + " requires at least API v34.0 (vCD 10.1+)")
-	}
 
 	nsxtExtNet, err := govcd.GetExternalNetworkV2ByName(vcdClient.VCDClient, testConfig.Nsxt.ExternalNetwork)
 	if err != nil {
@@ -134,6 +131,10 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
        start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
        end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      }
+  }
+
+  lifecycle {
+	prevent_destroy = true
   }
 }
 `
@@ -640,6 +641,7 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
 
 // TestAccVcdNsxtEdgeGatewayVdcUpdateFails checks that it is impossible to update `vdc` field unless it is
 // set to empty (in case of migration to `owner_id` field)
+// After an expected failure it will just use the same VDC using `owner_id` instead of `vdc` field.
 func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 	preTestChecks(t)
 	if !usingSysAdmin() {
@@ -648,12 +650,12 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 	}
 
 	skipNoNsxtConfiguration(t)
-	vcdClient := createTemporaryVCDConnection(false)
+	// vcdClient := createTemporaryVCDConnection(false)
 
-	nsxtExtNet, err := govcd.GetExternalNetworkV2ByName(vcdClient.VCDClient, testConfig.Nsxt.ExternalNetwork)
-	if err != nil {
-		t.Skipf("%s - could not retrieve external network", t.Name())
-	}
+	// nsxtExtNet, err := govcd.GetExternalNetworkV2ByName(vcdClient.VCDClient, testConfig.Nsxt.ExternalNetwork)
+	// if err != nil {
+	// 	t.Skipf("%s - could not retrieve external network", t.Name())
+	// }
 
 	var params = StringMap{
 		"Org":                       testConfig.VCD.Org,
@@ -663,8 +665,6 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 		"Name":                      "TestAccVcdVdcGroupResource",
 		"ProviderVdc":               testConfig.VCD.NsxtProviderVdc.Name,
 		"NetworkPool":               testConfig.VCD.NsxtProviderVdc.NetworkPool,
-		"Allocated":                 "1024",
-		"Limit":                     "1024",
 		"ProviderVdcStorageProfile": testConfig.VCD.ProviderVdc.StorageProfile,
 
 		"Tags": "vdcGroup gateway nsxt",
@@ -695,17 +695,7 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
 					resource.TestMatchResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", regexp.MustCompile(`^urn:vcloud:vdc:`)),
-					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "dedicate_external_network", "false"),
-					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "primary_ip", nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*", map[string]string{
-						"gateway":       nsxtExtNet.ExternalNetwork.Subnets.Values[0].Gateway,
-						"prefix_length": strconv.Itoa(nsxtExtNet.ExternalNetwork.Subnets.Values[0].PrefixLength),
-						"primary_ip":    nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
-					}),
-					resource.TestCheckTypeSetElemNestedAttrs("vcd_nsxt_edgegateway.nsxt-edge", "subnet.*.allocated_ips.*", map[string]string{
-						"start_address": nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
-						"end_address":   nsxtExtNet.ExternalNetwork.Subnets.Values[0].IPRanges.Values[0].EndAddress,
-					}),
+					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "vdc", testConfig.Nsxt.Vdc),
 				),
 			},
 			{
@@ -713,10 +703,12 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 				ExpectError: regexp.MustCompile(`changing 'vdc' field value is not supported`),
 			},
 			{
+				// Switch directly from `vdc` to the same VDC using `owner_id` field
 				Config: configText3,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
 					resource.TestMatchResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "owner_id", regexp.MustCompile(`^urn:vcloud:vdc:`)),
+					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "vdc", "newVdc"),
 				),
 			},
 		},
@@ -748,8 +740,6 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
   depends_on = [vcd_org_vdc.newVdc]
 }
 resource "vcd_org_vdc" "newVdc" {
-	provider = vcd
-  
 	name = "newVdc"
 	org  = "{{.Org}}"
   
