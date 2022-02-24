@@ -406,21 +406,24 @@ data "vcd_nsxt_edgegateway" "ds" {
 }
 `
 
-// TestAccVcdNsxtEdgeGatewayVdcGroupMigration tests the following migration scenario
+// TestAccVcdNsxtEdgeGatewayVdcGroupMigration has the main goal to test migration path from
+// deprecated `vdc` to `owner_id`. It does so in the following steps:
 // Step 1 - sets up prerequisites (a VDC Group with 2 VDCs in it)
 // Step 2 - creates an Edge Gateway in a VDC using deprecated `vdc` field
 // Step 3 - updates the Edge Gateway to use `owner_id` field instead of `vdc` field (keeping the same VDC)
 // Step 4 - migrates the Edge Gateway to a VDC group
 // Step 5 - migrates the Edge Gateway to a different VDC than the starting one
+//
+// Note. At all times the resource must not be recreated which is ensured by setting lifecycle parameter
+// lifecycle {
+//   prevent_destroy = true
+// }
 func TestAccVcdNsxtEdgeGatewayVdcGroupMigration(t *testing.T) {
 	preTestChecks(t)
-
-	// This test requires access to the vCD before filling templates
-	// Thus it won't run in the short test
-	//if vcdShortTest {
-	//	t.Skip(acceptanceTestsSkipped)
-	//	return
-	//}
+	if !usingSysAdmin() {
+		t.Skip(t.Name() + " requires system admin privileges")
+		return
+	}
 
 	vcdClient := createTemporaryVCDConnection(false)
 
@@ -453,6 +456,7 @@ func TestAccVcdNsxtEdgeGatewayVdcGroupMigration(t *testing.T) {
 	debugPrintf("#[DEBUG] CONFIGURATION for step 1: %s", configTextPre)
 
 	params["FuncName"] = t.Name() + "-step2"
+	params["FuncName"] = t.Name() + "-step2"
 	configText2 := templateFill(edgeVdcGroupMigration, params)
 	debugPrintf("#[DEBUG] CONFIGURATION for step 2: %s", configText2)
 
@@ -484,6 +488,7 @@ func TestAccVcdNsxtEdgeGatewayVdcGroupMigration(t *testing.T) {
 			},
 			{
 				Config: configText2,
+
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "name", params["NsxtEdgeGatewayVcd"].(string)),
 					resource.TestCheckResourceAttr("vcd_nsxt_edgegateway.nsxt-edge", "vdc", fmt.Sprintf("%s-0", t.Name())),
@@ -540,6 +545,10 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
        end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      }
   }
+
+  lifecycle {
+	prevent_destroy = true
+  }
 }
 `
 
@@ -566,6 +575,10 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
        end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      }
   }
+
+  lifecycle {
+	prevent_destroy = true
+  }
 }
 `
 
@@ -591,6 +604,10 @@ resource "vcd_nsxt_edgegateway" "nsxt-edge" {
        start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
        end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
      }
+  }
+
+  lifecycle {
+	prevent_destroy = true
   }
 }
 `
@@ -643,7 +660,6 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 		"NsxtVdc":                   testConfig.Nsxt.Vdc,
 		"NsxtEdgeGatewayVcd":        "nsxt-edge-test",
 		"ExternalNetwork":           testConfig.Nsxt.ExternalNetwork,
-		"EdgeClusterId":             lookupAvailableEdgeClusterId(t, vcdClient),
 		"Name":                      "TestAccVcdVdcGroupResource",
 		"ProviderVdc":               testConfig.VCD.NsxtProviderVdc.Name,
 		"NetworkPool":               testConfig.VCD.NsxtProviderVdc.NetworkPool,
@@ -710,6 +726,27 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 
 const testAccNsxtEdgeGatewayVdcSwitch = testAccNsxtEdgeGatewayDataSources + `
 # skip-binary-test: This test is expected to fail
+resource "vcd_nsxt_edgegateway" "nsxt-edge" {
+  org         = "{{.Org}}"
+  vdc         = vcd_org_vdc.newVdc.name
+  name        = "{{.NsxtEdgeGatewayVcd}}"
+  description = "Description"
+
+  external_network_id = data.vcd_external_network_v2.existing-extnet.id
+
+  subnet {
+     gateway       = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
+     prefix_length = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
+
+     primary_ip = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+     allocated_ips {
+       start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+       end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
+     }
+  }
+
+  depends_on = [vcd_org_vdc.newVdc]
+}
 resource "vcd_org_vdc" "newVdc" {
 	provider = vcd
   
@@ -744,30 +781,8 @@ resource "vcd_org_vdc" "newVdc" {
 	enable_fast_provisioning   = true
 	delete_force               = true
 	delete_recursive           = true
-	elasticity      			 = true
+	elasticity      		   = true
 	include_vm_memory_overhead = true
-  }
-
-resource "vcd_nsxt_edgegateway" "nsxt-edge" {
-  org         = "{{.Org}}"
-  vdc         = vcd_org_vdc.newVdc.name
-  name        = "{{.NsxtEdgeGatewayVcd}}"
-  description = "Description"
-
-  external_network_id = data.vcd_external_network_v2.existing-extnet.id
-
-  subnet {
-     gateway       = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].gateway
-     prefix_length = tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].prefix_length
-
-     primary_ip = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
-     allocated_ips {
-       start_address = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
-       end_address   = tolist(tolist(data.vcd_external_network_v2.existing-extnet.ip_scope)[0].static_ip_pool)[0].end_address
-     }
-  }
-
-  depends_on = [vcd_org_vdc.newVdc]
 }
 `
 
