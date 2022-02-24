@@ -292,7 +292,17 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, vcdClient *VCDClient, isCrea
 	ownerIdField := d.Get("owner_id").(string)
 	startingVdcId := d.Get("starting_vdc_id").(string)
 
-	ownerId, err := getOwnerId(d, vcdClient, isCreateOperation, ownerIdField, startingVdcId, vdcField, inheritedVdcField)
+	var ownerId string
+	var err error
+
+	if isCreateOperation {
+		ownerId, err = getCreateOwnerId(d, vcdClient, ownerIdField, startingVdcId, vdcField, inheritedVdcField)
+	}
+
+	if !isCreateOperation {
+		ownerId, err = getUpdateOwnerId(d, vcdClient, ownerIdField, startingVdcId, vdcField, inheritedVdcField)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -320,36 +330,21 @@ func getNsxtEdgeGatewayType(d *schema.ResourceData, vcdClient *VCDClient, isCrea
 	return &edgeGatewayType, nil
 }
 
-// getOwnerId looks up correct value for `owner_id`
-//
-// With the introduction of VDC group support handling VDC reference becomes
-// 3 major combinations possible with `owner_id` having some sub-combinations. They also differ for `create` and `update` because
-// Edge Gateway cannot be created directly in VDC Group.
-// * `vdc` or `owner_id` fields are not set (inherited from `provider` section)
-// * `vdc` field is specified
-// * `owner_id` field is specified
-//   * `owner_id` is VDC
-//   * `owner_id` is VDC Group
-//     * `owner_id` is VDC Group and `starting_vdc_id` is possibly set
-// Whenever owner_id field is set - it takes priority over `vdc` field (set in resource or inherited from provider)
-func getOwnerId(d *schema.ResourceData, vcdClient *VCDClient, isCreateOperation bool, ownerIdField string, startingVdcId string, vdcField string, inheritedVdcField string) (string, error) {
+// getCreateOwnerId defines how `owner_id` is defined for create operations
+func getCreateOwnerId(d *schema.ResourceData, vcdClient *VCDClient, ownerIdField string, startingVdcId string, vdcField string, inheritedVdcField string) (string, error) {
 	var ownerId string
+
 	switch {
-	// Create operation
-	// `owner_id` is specified and is VDC Group
-	// `starting_vdc_id` is specified
-	case isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId != "":
-		log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is set")
+	// `owner_id` is specified and is VDC Group. `starting_vdc_id` is specified.
+	// Initial `owner_id` for create operation should be `starting_vdc_id` which is later going to
+	// be moved to a VDC by a separate API call `createdEdgeGateway.MoveToVdcGroup`
+	case ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId != "":
+		log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is set. Picking 'starting_vdc_id' for create operation")
 		ownerId = startingVdcId
-	// Update operation
-	// `owner_id` is specified and is VDC Group. It does not matter if `starting_vdc_id` is specified or not
-	case !isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId != "":
-		log.Printf("[TRACE] NSX-T Edge Gateway update 'owner_id' field is set and is VDC group.")
-		ownerId = startingVdcId
-	// Create operation
+
 	// `owner_id` is specified and is VDC Group. `starting_vdc_id` is not specified.
-	// NSX-T Edge Gateway cannot be created in VDC group therefore we are going to lookup random VDC
-	case isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId == "":
+	// NSX-T Edge Gateway cannot be created in VDC group therefore we are going to lookup random VDC in specified group
+	case ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId == "":
 		log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is not set. Choosing random starting VDC")
 
 		// Lookup Org
@@ -364,20 +359,58 @@ func getOwnerId(d *schema.ResourceData, vcdClient *VCDClient, isCreateOperation 
 		}
 
 		if vdcGroup.VdcGroup != nil && len(vdcGroup.VdcGroup.ParticipatingOrgVdcs) > 0 {
+			log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is not set. Picked starting VDC '%s' (%s)",
+				vdcGroup.VdcGroup.ParticipatingOrgVdcs[0].VdcRef.Name, vdcGroup.VdcGroup.ParticipatingOrgVdcs[0].VdcRef.ID)
 			ownerId = vdcGroup.VdcGroup.ParticipatingOrgVdcs[0].VdcRef.ID
 		}
-	// Update operation
-	// `owner_id` is set
-	case !isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId == "":
-		log.Printf("[TRACE] NSX-T Edge Gateway update 'owner_id' field is set and is VDC group. 'starting_vdc_id' is not set. Choosing random starting VDC")
-
-		ownerId = ownerIdField
-	//case !isCreateOperation
-	//case ownerIdField != "" && govcd.OwnerIsVdc(ownerIdField):
-	//	log.Printf("[TRACE] NSX-T Edge Gateway 'owner_id' field is set and is VDC")
-	//	ownerId = ownerIdField
+	// `vdc` field is specified in the resource
 	case vdcField != "":
-		log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is set only in resource")
+		log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is set in resource")
+
+		adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+		if err != nil {
+			return "", fmt.Errorf("error retrieving Org: %s", err)
+		}
+
+		vdc, err := adminOrg.GetVDCByName(vdcField, false)
+		if err != nil {
+			return "", fmt.Errorf("error finding VDC '%s': %s", vdcField, err)
+		}
+
+		ownerId = vdc.Vdc.ID
+	// `vdc` field is not set in the resource itself, but is inherited from `provider`
+	case inheritedVdcField != "" && vdcField == "" && ownerIdField == "":
+		log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is inherited from provider configuration. `vdc` and `owner_id` are not set in resource.")
+
+		adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+		if err != nil {
+			return "", fmt.Errorf("error retrieving Org: %s", err)
+		}
+
+		vdc, err := adminOrg.GetVDCByName(inheritedVdcField, false)
+		if err != nil {
+			return "", fmt.Errorf("error finding VDC '%s': %s", inheritedVdcField, err)
+		}
+
+		ownerId = vdc.Vdc.ID
+	default:
+		return "", fmt.Errorf("error looking up ownerId field")
+	}
+
+	return ownerId, nil
+}
+
+// getUpdateOwnerId defines how `owner_id` is defined for update operations
+func getUpdateOwnerId(d *schema.ResourceData, vcdClient *VCDClient, ownerIdField string, startingVdcId string, vdcField string, inheritedVdcField string) (string, error) {
+	var ownerId string
+
+	switch {
+	case ownerIdField != "":
+		log.Printf("[TRACE] NSX-T Edge Gateway update - 'owner_id' is set. Using it.")
+		ownerId = ownerIdField
+
+	case vdcField != "":
+		log.Printf("[TRACE] NSX-T Edge Gateway update 'vdc' field is set in resource")
 
 		adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
 		if err != nil {
@@ -391,7 +424,7 @@ func getOwnerId(d *schema.ResourceData, vcdClient *VCDClient, isCreateOperation 
 
 		ownerId = vdc.Vdc.ID
 	case inheritedVdcField != "" && vdcField == "" && ownerIdField == "":
-		log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is inherited from provider. `vdc` and `owner_id` are not set")
+		log.Printf("[TRACE] NSX-T Edge Gateway update 'vdc' field is inherited from provider. `vdc` and `owner_id` are not set")
 
 		adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
 		if err != nil {
@@ -410,6 +443,209 @@ func getOwnerId(d *schema.ResourceData, vcdClient *VCDClient, isCreateOperation 
 	}
 	return ownerId, nil
 }
+
+// getOwnerId looks up correct value for `owner_id`
+//
+// With the introduction of VDC group support handling VDC reference becomes
+// 3 major combinations possible with `owner_id` having some sub-combinations. They also differ for `create` and `update` because
+// Edge Gateway cannot be created directly in VDC Group.
+// * `vdc` or `owner_id` fields are not set (inherited from `provider` section)
+// * `vdc` field is specified
+// * `owner_id` field is specified
+//   * `owner_id` is VDC
+//   * `owner_id` is VDC Group
+//     * `owner_id` is VDC Group and `starting_vdc_id` is possibly set
+// Whenever owner_id field is set - it takes priority over `vdc` field (set in resource or inherited from provider)
+// func getOwnerId(d *schema.ResourceData, vcdClient *VCDClient, isCreateOperation bool, ownerIdField string, startingVdcId string, vdcField string, inheritedVdcField string) (string, error) {
+// 	var ownerId string
+
+// 	if isCreateOperation {
+// 		switch {
+// 		// `owner_id` is specified and is VDC Group
+// 		// `starting_vdc_id` is specified
+// 		case ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId != "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is set")
+// 			ownerId = startingVdcId
+
+// 		// `owner_id` is specified and is VDC Group. `starting_vdc_id` is not specified.
+// 		// NSX-T Edge Gateway cannot be created in VDC group therefore we are going to lookup random VDC
+// 		case ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId == "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is not set. Choosing random starting VDC")
+
+// 			// Lookup Org
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdcGroup, err := adminOrg.GetVdcGroupById(ownerIdField)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving VDC group: %s", err)
+// 			}
+
+// 			if vdcGroup.VdcGroup != nil && len(vdcGroup.VdcGroup.ParticipatingOrgVdcs) > 0 {
+// 				ownerId = vdcGroup.VdcGroup.ParticipatingOrgVdcs[0].VdcRef.ID
+// 			}
+// 		case vdcField != "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is set only in resource")
+
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdc, err := adminOrg.GetVDCByName(vdcField, false)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error finding VDC '%s': %s", vdcField, err)
+// 			}
+
+// 			ownerId = vdc.Vdc.ID
+// 		case inheritedVdcField != "" && vdcField == "" && ownerIdField == "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is inherited from provider. `vdc` and `owner_id` are not set")
+
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdc, err := adminOrg.GetVDCByName(inheritedVdcField, false)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error finding VDC '%s': %s", inheritedVdcField, err)
+// 			}
+
+// 			ownerId = vdc.Vdc.ID
+
+// 		default:
+// 			return "", fmt.Errorf("error looking up ownerId field")
+// 		}
+// 	}
+
+// 	if !isCreateOperation {
+// 		switch {
+// 		// `owner_id` is specified and is VDC Group. It does not matter if `starting_vdc_id` is specified or not
+// 		case ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId != "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway update 'owner_id' field is set and is VDC group.")
+// 			ownerId = startingVdcId
+// 		// `owner_id` is set
+// 		case ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId == "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway update 'owner_id' field is set and is VDC group. 'starting_vdc_id' is not set. Choosing random starting VDC")
+
+// 			ownerId = ownerIdField
+// 		//case !isCreateOperation
+// 		//case ownerIdField != "" && govcd.OwnerIsVdc(ownerIdField):
+// 		//	log.Printf("[TRACE] NSX-T Edge Gateway 'owner_id' field is set and is VDC")
+// 		//	ownerId = ownerIdField
+// 		case vdcField != "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is set only in resource")
+
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdc, err := adminOrg.GetVDCByName(vdcField, false)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error finding VDC '%s': %s", vdcField, err)
+// 			}
+
+// 			ownerId = vdc.Vdc.ID
+// 		case inheritedVdcField != "" && vdcField == "" && ownerIdField == "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is inherited from provider. `vdc` and `owner_id` are not set")
+
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdc, err := adminOrg.GetVDCByName(inheritedVdcField, false)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error finding VDC '%s': %s", inheritedVdcField, err)
+// 			}
+
+// 			ownerId = vdc.Vdc.ID
+
+// 		default:
+// 			return "", fmt.Errorf("error looking up ownerId field")
+// 		}
+// 	}
+// 	/*
+// 		switch {
+// 		// Create operation
+// 		// `owner_id` is specified and is VDC Group
+// 		// `starting_vdc_id` is specified
+// 		case isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId != "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is set")
+// 			ownerId = startingVdcId
+// 		// Update operation
+// 		// `owner_id` is specified and is VDC Group. It does not matter if `starting_vdc_id` is specified or not
+// 		case !isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId != "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway update 'owner_id' field is set and is VDC group.")
+// 			ownerId = startingVdcId
+// 		// Create operation
+// 		// `owner_id` is specified and is VDC Group. `starting_vdc_id` is not specified.
+// 		// NSX-T Edge Gateway cannot be created in VDC group therefore we are going to lookup random VDC
+// 		case isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId == "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway create 'owner_id' field is set and is VDC group. 'starting_vdc_id' is not set. Choosing random starting VDC")
+
+// 			// Lookup Org
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdcGroup, err := adminOrg.GetVdcGroupById(ownerIdField)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving VDC group: %s", err)
+// 			}
+
+// 			if vdcGroup.VdcGroup != nil && len(vdcGroup.VdcGroup.ParticipatingOrgVdcs) > 0 {
+// 				ownerId = vdcGroup.VdcGroup.ParticipatingOrgVdcs[0].VdcRef.ID
+// 			}
+// 		// Update operation
+// 		// `owner_id` is set
+// 		case !isCreateOperation && ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) && startingVdcId == "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway update 'owner_id' field is set and is VDC group. 'starting_vdc_id' is not set. Choosing random starting VDC")
+
+// 			ownerId = ownerIdField
+// 		//case !isCreateOperation
+// 		//case ownerIdField != "" && govcd.OwnerIsVdc(ownerIdField):
+// 		//	log.Printf("[TRACE] NSX-T Edge Gateway 'owner_id' field is set and is VDC")
+// 		//	ownerId = ownerIdField
+// 		case vdcField != "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is set only in resource")
+
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdc, err := adminOrg.GetVDCByName(vdcField, false)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error finding VDC '%s': %s", vdcField, err)
+// 			}
+
+// 			ownerId = vdc.Vdc.ID
+// 		case inheritedVdcField != "" && vdcField == "" && ownerIdField == "":
+// 			log.Printf("[TRACE] NSX-T Edge Gateway 'vdc' field is inherited from provider. `vdc` and `owner_id` are not set")
+
+// 			adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error retrieving Org: %s", err)
+// 			}
+
+// 			vdc, err := adminOrg.GetVDCByName(inheritedVdcField, false)
+// 			if err != nil {
+// 				return "", fmt.Errorf("error finding VDC '%s': %s", inheritedVdcField, err)
+// 			}
+
+// 			ownerId = vdc.Vdc.ID
+
+// 		default:
+// 			return "", fmt.Errorf("error looking up ownerId field")
+// 		}
+// 	*/
+// 	return ownerId, nil
+// }
 
 func getNsxtEdgeGatewayUplinksType(d *schema.ResourceData) []types.OpenAPIEdgeGatewaySubnetValue {
 
