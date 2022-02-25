@@ -154,7 +154,10 @@ func resourceVcdNsxtEdgeGatewayCreate(ctx context.Context, d *schema.ResourceDat
 
 	d.SetId(createdEdgeGateway.EdgeGateway.ID)
 
-	// NSX-T Edge Gateway cannot be directly created in VDC group, but can only be assigned to VDC group after creation
+	// NSX-T Edge Gateway cannot be directly created in VDC group, but can only be assigned to VDC
+	// group after creation. Function `getNsxtEdgeGatewayType` decided the initial location of VDC,
+	// but if the `owner_id` was set to VDC Group for creation - it must be moved to that VDC Group
+	// explicitly after creation.
 	ownerIdField := d.Get("owner_id").(string)
 	if ownerIdField != "" && govcd.OwnerIsVdcGroup(ownerIdField) {
 		log.Printf("[TRACE] NSX-T Edge Gateway update - 'owner_id' is specified and is VDC group. Moving it to VDC Group '%s'", ownerIdField)
