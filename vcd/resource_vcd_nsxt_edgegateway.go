@@ -139,7 +139,7 @@ func resourceVcdNsxtEdgeGatewayCreate(ctx context.Context, d *schema.ResourceDat
 
 	adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
 	if err != nil {
-		return diag.Errorf("error getting Admin Org: %s", err)
+		return diag.Errorf("error getting Org: %s", err)
 	}
 
 	nsxtEdgeGatewayType, err := getNsxtEdgeGatewayType(d, vcdClient, true)
@@ -180,7 +180,7 @@ func resourceVcdNsxtEdgeGatewayUpdate(ctx context.Context, d *schema.ResourceDat
 	vcdClient := meta.(*VCDClient)
 	adminOrg, err := vcdClient.GetAdminOrgFromResource(d)
 	if err != nil {
-		return diag.Errorf("error retrieving Admin Org: %s", err)
+		return diag.Errorf("error retrieving Org: %s", err)
 	}
 
 	edge, err := adminOrg.GetNsxtEdgeGatewayById(d.Id())
