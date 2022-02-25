@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -337,13 +335,6 @@ func TestAccVcdNsxtEdgeGatewayVdcGroup(t *testing.T) {
 	postTestChecks(t)
 }
 
-func stateDumper() resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		spew.Dump(s)
-		return nil
-	}
-}
-
 const edgeVdcGroup = testAccVcdVdcGroupNew + `
 data "vcd_external_network_v2" "existing-extnet" {
 	name = "{{.ExternalNetwork}}"
@@ -649,12 +640,6 @@ func TestAccVcdNsxtEdgeGatewayVdcUpdateFails(t *testing.T) {
 	}
 
 	skipNoNsxtConfiguration(t)
-	// vcdClient := createTemporaryVCDConnection(false)
-
-	// nsxtExtNet, err := govcd.GetExternalNetworkV2ByName(vcdClient.VCDClient, testConfig.Nsxt.ExternalNetwork)
-	// if err != nil {
-	// 	t.Skipf("%s - could not retrieve external network", t.Name())
-	// }
 
 	var params = StringMap{
 		"Org":                       testConfig.VCD.Org,
