@@ -2,8 +2,10 @@ package vcd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -11,26 +13,6 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
-
-/// TODO
-// IP space uplinks in Provider Gateways (separate API call)
-// External network (provider gateway "ownership") (`dedicatedOrg` field in external network endpoint)
-
-// var ipSpaceIpRange = &schema.Resource{
-// 	Schema: map[string]*schema.Schema{
-// 		"ip_ranges": {
-// 			Type:        schema.TypeSet,
-// 			Optional:    true,
-// 			Description: "IP ranges (should match internal scope)",
-// 			Elem:        ipSpaceIpRangeRange,
-// 		},
-// 		"default_quota": {
-// 			Type:        schema.TypeString,
-// 			Required:    true,
-// 			Description: "Floating IP quota (-1 for unlimited, 0 - cannot be allocated)",
-// 		},
-// 	},
-// }
 
 var ipSpaceIpRangeRange = &schema.Resource{
 	Schema: map[string]*schema.Schema{
@@ -53,15 +35,15 @@ var ipPrefixes = &schema.Resource{
 	Schema: map[string]*schema.Schema{
 		"prefix": {
 			Type:        schema.TypeSet,
-			Optional:    true,
+			Required:    true,
 			Description: "IP ranges (should match internal scope)",
 			Elem:        ipSpacePrefix,
 		},
 		"default_quota": {
 			Type:         schema.TypeString,
-			Required:     true,
+			Optional:     true,
 			Description:  "Floating IP quota",
-			ValidateFunc: IsIntAndAtLeast(-1),
+			ValidateFunc: IsIntAndAtLeast(-1), // -1 - unlimited, 0 - no quota
 		},
 	},
 }
@@ -75,39 +57,19 @@ var ipSpacePrefix = &schema.Resource{
 			// ValidateFunc: validation.IsIPAddress,
 		},
 		"prefix_length": {
-			Type:        schema.TypeString,
-			Required:    true,
-			Description: "First IP in CIDR format",
-			// ValidateFunc: validation.IsIPAddress,
+			Type:         schema.TypeString,
+			Required:     true,
+			Description:  "First IP in CIDR format",
+			ValidateFunc: IsIntAndAtLeast(0),
 		},
 		"prefix_count": {
-			Type:        schema.TypeString,
-			Required:    true,
-			Description: "Prefix count",
-			// ValidateFunc: validation.IsIPAddress,
+			Type:         schema.TypeString,
+			Required:     true,
+			Description:  "Prefix count",
+			ValidateFunc: IsIntAndAtLeast(1),
 		},
 	},
 }
-
-// Quota is set for:
-// * Floating IPs
-// * Each of the defined prefixes
-// var ipSpaceQuota = &schema.Resource{
-// 	Schema: map[string]*schema.Schema{
-// 		"floating_ips": {
-// 			Type:        schema.TypeString,
-// 			Required:    true,
-// 			Description: "Floating IPs",
-// 			// ValidateFunc: validation.IsIPAddress,
-// 		},
-// 		"32 prefix": {
-// 			Type:        schema.TypeString,
-// 			Required:    true,
-// 			Description: "/32 prefix",
-// 			// ValidateFunc: validation.IsIPAddress,
-// 		},
-// 	},
-// }
 
 func resourceVcdIpSpace() *schema.Resource {
 	return &schema.Resource{
@@ -142,16 +104,6 @@ func resourceVcdIpSpace() *schema.Resource {
 				Description: "Type of IP space",
 				// PUBLIC, SHARED_SERVICES, PRIVATE
 			},
-
-			// metadata? Nothing in UI, but maybe we can leverage the new JSON metadata mechanism?
-
-			// "org": {
-			// 	Type:     schema.TypeString,
-			// 	Optional: true,
-			// 	ForceNew: true,
-			// 	Description: "The name of organization to use, optional if defined at provider " +
-			// 		"level. Useful when connected as sysadmin working across different organizations",
-			// },
 			"internal_scope": {
 				Type:        schema.TypeSet,
 				Required:    true,
@@ -161,21 +113,20 @@ func resourceVcdIpSpace() *schema.Resource {
 					Type:     schema.TypeString,
 				},
 			},
-
 			"ip_range_quota": {
 				Type:         schema.TypeString,
 				Optional:     true,
+				Computed:     true,
 				Description:  "IP ranges (should match internal scope)",
 				ValidateFunc: IsIntAndAtLeast(-1),
 			},
-			"ip_ranges": {
+			"ip_range": {
 				Type:        schema.TypeSet,
 				Optional:    true,
 				Description: "IP ranges (should match internal scope)",
 				Elem:        ipSpaceIpRangeRange,
 			},
-
-			"ip_prefixes": {
+			"ip_prefix": {
 				Type:        schema.TypeSet,
 				Optional:    true,
 				Description: "IP prefixes (should match internal scope)",
@@ -186,21 +137,12 @@ func resourceVcdIpSpace() *schema.Resource {
 				Optional:    true,
 				Description: "External scope in CIDR format",
 			},
-
 			"route_advertisement_enabled": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Default:     false,
 				Description: "Flag whether route advertisement should be enabled",
 			},
-
-			// "quota": {
-			// 	Type:        schema.TypeList,
-			// 	MaxItems:    1,
-			// 	Optional:    true,
-			// 	Description: "Quota",
-			// 	Elem:        ipPrefixes,
-			// },
 		},
 	}
 }
@@ -214,7 +156,7 @@ func resourceVcdIpSpaceCreate(ctx context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("could not get IP Space type: %s", err)
 	}
 
-	createdIpSpace, err := vcdClient.GenericCreateIpSpace(ipSpaceConfig)
+	createdIpSpace, err := vcdClient.CreateIpSpace(ipSpaceConfig)
 	if err != nil {
 		return diag.Errorf("error creating IP Space: %s", err)
 	}
@@ -225,6 +167,26 @@ func resourceVcdIpSpaceCreate(ctx context.Context, d *schema.ResourceData, meta 
 }
 
 func resourceVcdIpSpaceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	vcdClient := meta.(*VCDClient)
+	log.Printf("[TRACE] IP Space creation initiated")
+
+	ipSpaceConfig, err := getIpSpaceType(d)
+	if err != nil {
+		return diag.Errorf("could not get IP Space type: %s", err)
+	}
+
+	ipSpace, err := vcdClient.GetIpSpaceById(d.Id())
+	if err != nil {
+		return diag.Errorf("error finding IP Space by ID '%s': %s", d.Id(), err)
+	}
+
+	ipSpaceConfig.ID = d.Id()
+
+	_, err = ipSpace.Update(ipSpaceConfig)
+	if err != nil {
+		return diag.Errorf("error updating IP Space: %s", err)
+	}
+
 	return resourceVcdIpSpaceRead(ctx, d, meta)
 }
 
@@ -267,6 +229,42 @@ func resourceVcdIpSpaceDelete(ctx context.Context, d *schema.ResourceData, meta 
 }
 
 func resourceVcdIpSpaceImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	log.Printf("[TRACE] IP Space import initiated")
+
+	resourceURI := strings.Split(d.Id(), ImportSeparator)
+	if len(resourceURI) != 1 && len(resourceURI) != 2 {
+		return nil, fmt.Errorf("resource name must be specified as ip-space-name or org-name.ip-space-name")
+	}
+	vcdClient := meta.(*VCDClient)
+
+	var ipSpace *govcd.IpSpace
+
+	if len(resourceURI) == 2 {
+		ipSpaceName := resourceURI[1]
+		orgName := resourceURI[0]
+
+		org, err := vcdClient.GetOrgByName(orgName)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving Org '%s': %s", orgName, err)
+		}
+
+		ipSpace, err = vcdClient.GetIpSpaceByNameAndOrgId(ipSpaceName, org.Org.ID)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving IP Space '%s' in Org '%s': %s", ipSpaceName, orgName, err)
+		}
+		dSet(d, "org_id", org.Org.ID)
+
+	} else {
+		var err error
+		ipSpaceName := resourceURI[0]
+		ipSpace, err = vcdClient.GetIpSpaceByName(ipSpaceName)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving IP Space '%s': %s", ipSpaceName, err)
+		}
+	}
+
+	d.SetId(ipSpace.IpSpace.ID)
+
 	return []*schema.ResourceData{d}, nil
 }
 
@@ -331,7 +329,7 @@ func getIpSpaceType(d *schema.ResourceData) (*types.IpSpace, error) {
 		RouteAdvertisementEnabled: d.Get("route_advertisement_enabled").(bool),
 	}
 
-	// IP Space Ranges
+	// IP Ranges
 	ipRangeQuota := d.Get("ip_range_quota").(string)
 	ipRangeQuotaInt, _ := strconv.Atoi(ipRangeQuota) // error is ignored because validation is enforced in schema
 
@@ -339,24 +337,22 @@ func getIpSpaceType(d *schema.ResourceData) (*types.IpSpace, error) {
 		DefaultFloatingIPQuota: ipRangeQuotaInt,
 	}
 
-	ipRanges := d.Get("ip_ranges").(*schema.Set)
+	ipRanges := d.Get("ip_range").(*schema.Set)
 	ipRangesSlice := ipRanges.List()
 	if len(ipRangesSlice) > 0 {
-
 		ipSpace.IPSpaceRanges.IPRanges = make([]types.IpSpaceRangeValues, len(ipRangesSlice))
 		for ipRangeIndex := range ipRangesSlice {
 			ipRangeStrings := convertToStringMap(ipRangesSlice[ipRangeIndex].(map[string]interface{}))
 
 			ipSpace.IPSpaceRanges.IPRanges[ipRangeIndex].StartIPAddress = ipRangeStrings["start_address"]
 			ipSpace.IPSpaceRanges.IPRanges[ipRangeIndex].EndIPAddress = ipRangeStrings["end_address"]
-
 		}
 	}
 
-	// EOF // IP Space Ranges
+	// EOF IP Ranges
 
 	// IP Prefixes
-	ipPrefixes := d.Get("ip_prefixes").(*schema.Set)
+	ipPrefixes := d.Get("ip_prefix").(*schema.Set)
 	ipPrefixesSlice := ipPrefixes.List()
 
 	// Initialize structure
@@ -366,12 +362,12 @@ func getIpSpaceType(d *schema.ResourceData) (*types.IpSpace, error) {
 
 	for ipPrefixIndex := range ipPrefixesSlice {
 
-		ipppppppPrefix := ipPrefixesSlice[ipPrefixIndex]
-		ipPrefixMap := ipppppppPrefix.(map[string]interface{})
+		singleIpPrefix := ipPrefixesSlice[ipPrefixIndex]
+		ipPrefixMap := singleIpPrefix.(map[string]interface{})
 		ipPrefixQuota := ipPrefixMap["default_quota"].(string)
 		ipPrefixQuotaInt, _ := strconv.Atoi(ipPrefixQuota) // ignoring error as validation is enforce in schema
 
-		ipSpacePrexif := types.IPSpacePrefixes{
+		ipSpacePrefixType := types.IPSpacePrefixes{
 			DefaultQuotaForPrefixLength: ipPrefixQuotaInt,
 		}
 
@@ -381,7 +377,7 @@ func getIpSpaceType(d *schema.ResourceData) (*types.IpSpace, error) {
 		ipPrefixPrefix := ipPrefixMap["prefix"].(*schema.Set)
 		ipPrefixPrefixSlice := ipPrefixPrefix.List()
 		if len(ipPrefixPrefixSlice) > 0 {
-			ipSpacePrexif.IPPrefixSequence = []types.IPPrefixSequence{}
+			ipSpacePrefixType.IPPrefixSequence = []types.IPPrefixSequence{}
 		}
 
 		for ipPrefixPrefixIndex := range ipPrefixPrefixSlice {
@@ -390,37 +386,17 @@ func getIpSpaceType(d *schema.ResourceData) (*types.IpSpace, error) {
 			prefixLengthInt, _ := strconv.Atoi(ipPrefixMap["prefix_length"])
 			prefixLengthCountInt, _ := strconv.Atoi(ipPrefixMap["prefix_count"])
 
-			ipSpacePrexif.IPPrefixSequence = append(ipSpacePrexif.IPPrefixSequence, types.IPPrefixSequence{
+			ipSpacePrefixType.IPPrefixSequence = append(ipSpacePrefixType.IPPrefixSequence, types.IPPrefixSequence{
 				StartingPrefixIPAddress: ipPrefixMap["first_ip"],
 				PrefixLength:            prefixLengthInt,
 				TotalPrefixCount:        prefixLengthCountInt,
 			})
-
-			// "first_ip": {
-			// 	Type:        schema.TypeString,
-			// 	Required:    true,
-			// 	Description: "First IP in CIDR format",
-			// 	// ValidateFunc: validation.IsIPAddress,
-			// },
-			// "prefix_length": {
-			// 	Type:        schema.TypeString,
-			// 	Required:    true,
-			// 	Description: "First IP in CIDR format",
-			// 	// ValidateFunc: validation.IsIPAddress,
-			// },
-			// "prefix_count": {
-			// 	Type:        schema.TypeString,
-			// 	Required:    true,
-			// 	Description: "Prefix count",
-			// 	// ValidateFunc: validation.IsIPAddress,
-			// },
-
 		}
 
 		// EOF // Extract IP prefixess
 
 		// Add to the list
-		ipSpace.IPSpacePrefixes = append(ipSpace.IPSpacePrefixes, ipSpacePrexif)
+		ipSpace.IPSpacePrefixes = append(ipSpace.IPSpacePrefixes, ipSpacePrefixType)
 
 	}
 
@@ -441,6 +417,68 @@ func setIpSpaceData(d *schema.ResourceData, ipSpace *types.IpSpace) error {
 	dSet(d, "description", ipSpace.Description)
 	dSet(d, "type", ipSpace.Type)
 	dSet(d, "route_advertisement_enabled", ipSpace.RouteAdvertisementEnabled)
+	dSet(d, "external_scope", ipSpace.IPSpaceExternalScope)
+
+	if ipSpace.OrgRef != nil && ipSpace.OrgRef.ID != "" {
+		dSet(d, "org_id", ipSpace.OrgRef.ID)
+	}
+
+	ipRangeQuotaStr := strconv.Itoa(ipSpace.IPSpaceRanges.DefaultFloatingIPQuota)
+	dSet(d, "ip_range_quota", ipRangeQuotaStr)
+
+	prefixesInterface := make([]interface{}, len(ipSpace.IPSpacePrefixes))
+	for i, val := range ipSpace.IPSpacePrefixes {
+		singlePrefix := make(map[string]interface{})
+
+		strQuotaPrefixLength := strconv.Itoa(val.DefaultQuotaForPrefixLength)
+		singlePrefix["default_quota"] = strQuotaPrefixLength
+
+		prefSequence := make([]interface{}, len(val.IPPrefixSequence))
+		for ii, seqVal := range val.IPPrefixSequence {
+
+			singlePrefixSequence := make(map[string]interface{})
+
+			prefixLengthStr := strconv.Itoa(seqVal.PrefixLength)
+			prefixCountStr := strconv.Itoa(seqVal.TotalPrefixCount)
+
+			singlePrefixSequence["first_ip"] = seqVal.StartingPrefixIPAddress
+			singlePrefixSequence["prefix_length"] = prefixLengthStr
+			singlePrefixSequence["prefix_count"] = prefixCountStr
+
+			prefSequence[ii] = singlePrefixSequence
+		}
+
+		singlePrefix["prefix"] = prefSequence
+		prefixesInterface[i] = singlePrefix
+	}
+
+	err := d.Set("ip_prefix", prefixesInterface)
+	if err != nil {
+		return fmt.Errorf("error storing 'ip_prefix': %s", err)
+	}
+
+	// IP ranges
+	ipRangesInterface := make([]interface{}, len(ipSpace.IPSpaceRanges.IPRanges))
+	for i, val := range ipSpace.IPSpaceRanges.IPRanges {
+		singleRange := make(map[string]interface{})
+
+		singleRange["start_address"] = val.StartIPAddress
+		singleRange["end_address"] = val.EndIPAddress
+
+		ipRangesInterface[i] = singleRange
+	}
+	err = d.Set("ip_range", ipRangesInterface)
+	if err != nil {
+		return fmt.Errorf("error storing 'ip_range': %s", err)
+	}
+	// IP ranges
+
+	// Internal scope
+	setOfStrs := convertStringsToTypeSet(ipSpace.IPSpaceInternalScope)
+	err = d.Set("internal_scope", setOfStrs)
+	if err != nil {
+		return fmt.Errorf("error storing 'internal_scope': %s", err)
+	}
 
 	return nil
 }

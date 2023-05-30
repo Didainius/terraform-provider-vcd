@@ -120,6 +120,8 @@ var globalDataSourceMap = map[string]*schema.Resource{
 	"vcd_nsxt_edgegateway_qos_profile":              datasourceVcdNsxtEdgeGatewayQosProfile(),        // 3.9
 	"vcd_nsxt_edgegateway_rate_limiting":            datasourceVcdNsxtEdgegatewayRateLimiting(),      // 3.9
 	"vcd_nsxt_network_dhcp_binding":                 datasourceVcdNsxtDhcpBinding(),                  // 3.9
+	"vcd_ip_space":                                  datasourceVcdIpSpace(),                          // 3.10
+
 }
 
 var globalResourceMap = map[string]*schema.Resource{
