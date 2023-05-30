@@ -3,30 +3,32 @@ layout: "vcd"
 page_title: "VMware Cloud Director: vcd_ip_space"
 sidebar_current: "docs-vcd-data-source-ip-space"
 description: |-
-  Provides a data source to read NSX-T ALB General Settings for particular NSX-T Edge Gateway.
+  Provides a data source to read IP Spaces. IP Spaces provide 
+  structured approach to allocating public and private IP addresses by preventing the use of 
+  overlapping IP addresses across organizations and organization VDCs.
 ---
 
 # vcd\_ip\_space
 
-Supported in provider *v3.5+* and VCD 10.2+ with NSX-T and ALB.
+Provides a data source to read IP Spaces. IP Spaces provide structured approach to allocating public
+and private IP addresses by preventing the use of overlapping IP addresses across organizations and
+organization VDCs.
 
-Provides a data source to read NSX-T ALB General Settings for particular NSX-T Edge Gateway.
+IP Spaces require VCD 10.4.1+ with NSX-T.
 
-## Example Usage
+## Example Usage (Private IP Space within an Org)
 
 ```hcl
-data "vcd_nsxt_edgegateway" "existing" {
-  org  = "my-org"
-  vdc  = "nsxt-vdc"
-
-  name = "nsxt-gw"
+data "vcd_ip_space" "space1" {
+  org_id = data.vcd_org.org1.id
+  name   = "private-ip-space"
 }
+```
 
-data "vcd_nsxt_alb_settings" "test" {
-  org  = "my-org"
-  vdc  = "nsxt-vdc"
-
-  edge_gateway_id = data.vcd_nsxt_edgegateway.existing.id
+## Example Usage (Public or Shared IP Space)
+```hcl
+data "vcd_ip_space" "space1" {
+  name = "private-ip-space"
 }
 ```
 
@@ -34,12 +36,10 @@ data "vcd_nsxt_alb_settings" "test" {
 
 The following arguments are supported:
 
-* `org` - (Optional) The name of organization to which the edge gateway belongs. Optional if defined at provider level.
-* `vdc` - (Optional) The name of VDC that owns the edge gateway. Optional if defined at provider level.
-* `edge_gateway_id` - (Required) An ID of NSX-T Edge Gateway. Can be lookup up using
-  [vcd_nsxt_edgegateway](/providers/vmware/vcd/latest/docs/data-sources/nsxt_edgegateway) data source
+* `org_id` - (Optional) Org ID for Private IP Space.
+* `name` - (Required) The name of IP Space.
 
 ## Attribute Reference
 
 All the arguments and attributes defined in
-[`vcd_nsxt_alb_settings`](/providers/vmware/vcd/latest/docs/resources/nsxt_alb_settings) resource are available.
+[`vcd_ip_space`](/providers/vmware/vcd/latest/docs/resources/ip_space) resource are available.
