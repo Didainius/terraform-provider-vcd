@@ -70,9 +70,10 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 				DiffSuppressFunc: suppressCase,
 			},
 			"gateway": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Gateway IP address",
+				Type:             schema.TypeString,
+				Required:         true,
+				Description:      "Gateway IP address",
+				DiffSuppressFunc: suppressEqualIp,
 			},
 			"prefix_length": {
 				Type:        schema.TypeInt,
@@ -91,10 +92,11 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 				Description: "Boolean value if Dual-Stack mode should be enabled (default `false`)",
 			},
 			"secondary_gateway": {
-				Type:        schema.TypeString,
-				ForceNew:    true,
-				Optional:    true,
-				Description: "Secondary gateway (can only be IPv6 and requires enabled Dual Stack mode)",
+				Type:             schema.TypeString,
+				ForceNew:         true,
+				Optional:         true,
+				Description:      "Secondary gateway (can only be IPv6 and requires enabled Dual Stack mode)",
+				DiffSuppressFunc: suppressEqualIp,
 			},
 			"secondary_prefix_length": {
 				Type:         schema.TypeString, // using TypeString to differentiate between 0 and no value ""
@@ -110,14 +112,16 @@ func resourceVcdNetworkRoutedV2() *schema.Resource {
 				Elem:        networkV2IpRange,
 			},
 			"dns1": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "DNS server 1",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "DNS server 1",
+				DiffSuppressFunc: suppressEqualIp,
 			},
 			"dns2": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "DNS server 1",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "DNS server 1",
+				DiffSuppressFunc: suppressEqualIp,
 			},
 			"dns_suffix": {
 				Type:        schema.TypeString,

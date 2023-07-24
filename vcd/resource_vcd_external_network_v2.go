@@ -19,10 +19,11 @@ import (
 var networkV2IpScope = &schema.Resource{
 	Schema: map[string]*schema.Schema{
 		"gateway": {
-			Type:         schema.TypeString,
-			Required:     true,
-			Description:  "Gateway of the network",
-			ValidateFunc: validation.IsIPAddress,
+			Type:             schema.TypeString,
+			Required:         true,
+			Description:      "Gateway of the network",
+			ValidateFunc:     validation.IsIPAddress,
+			DiffSuppressFunc: suppressEqualIp,
 		},
 		"prefix_length": {
 			Type:         schema.TypeInt,
@@ -43,16 +44,18 @@ var networkV2IpScope = &schema.Resource{
 			Elem:        networkV2IpRange,
 		},
 		"dns1": {
-			Type:         schema.TypeString,
-			Optional:     true,
-			Description:  "Primary DNS server",
-			ValidateFunc: validation.IsIPAddress,
+			Type:             schema.TypeString,
+			Optional:         true,
+			Description:      "Primary DNS server",
+			ValidateFunc:     validation.IsIPAddress,
+			DiffSuppressFunc: suppressEqualIp,
 		},
 		"dns2": {
-			Type:         schema.TypeString,
-			Optional:     true,
-			Description:  "Secondary DNS server",
-			ValidateFunc: validation.IsIPAddress,
+			Type:             schema.TypeString,
+			Optional:         true,
+			Description:      "Secondary DNS server",
+			ValidateFunc:     validation.IsIPAddress,
+			DiffSuppressFunc: suppressEqualIp,
 		},
 		"dns_suffix": {
 			Type:        schema.TypeString,
@@ -65,16 +68,18 @@ var networkV2IpScope = &schema.Resource{
 var networkV2IpRange = &schema.Resource{
 	Schema: map[string]*schema.Schema{
 		"start_address": {
-			Type:         schema.TypeString,
-			Required:     true,
-			Description:  "Start address of the IP range",
-			ValidateFunc: validation.IsIPAddress,
+			Type:             schema.TypeString,
+			Required:         true,
+			Description:      "Start address of the IP range",
+			ValidateFunc:     validation.IsIPAddress,
+			DiffSuppressFunc: suppressEqualIp,
 		},
 		"end_address": {
-			Type:         schema.TypeString,
-			Required:     true,
-			Description:  "End address of the IP range",
-			ValidateFunc: validation.IsIPAddress,
+			Type:             schema.TypeString,
+			Required:         true,
+			Description:      "End address of the IP range",
+			ValidateFunc:     validation.IsIPAddress,
+			DiffSuppressFunc: suppressEqualIp,
 		},
 	},
 }

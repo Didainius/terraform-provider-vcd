@@ -2,6 +2,7 @@ package vcd
 
 //lint:file-ignore SA1019 ignore deprecated functions
 import (
+	"net/netip"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -52,4 +53,23 @@ func suppressFalse() schema.SchemaDiffSuppressFunc {
 // suppressCase is a schema.SchemaDiffSuppressFunc which ignore case changes
 func suppressCase(k, old, new string, d *schema.ResourceData) bool {
 	return strings.EqualFold(old, new)
+}
+
+// suppressEqualIp is mainly useful for IPv6 where multiple formats might exist - long
+// (2a00:a555:3000:1:0:0:0:32) and short (2a00:a555:3000:1::32), but also works with IPv4. VCD
+// always returns long format IPv6 address, but a user might supply short format (as well as
+// Terraform's native `cidrhost` function, therefore we want to avoid diff when a user uses his own
+// format)
+func suppressEqualIp(k, old, new string, d *schema.ResourceData) bool {
+	oldIp, err := netip.ParseAddr(old)
+	if err != nil {
+		return false
+	}
+
+	newIp, err := netip.ParseAddr(new)
+	if err != nil {
+		return false
+	}
+
+	return oldIp.Compare(newIp) == 0
 }
