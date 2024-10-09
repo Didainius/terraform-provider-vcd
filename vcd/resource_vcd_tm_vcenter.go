@@ -135,7 +135,16 @@ func setTmVcenterData(d *schema.ResourceData, v *govcd.VCenter) error {
 
 func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-	return create(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.CreateVcenter, setTmVcenterData, resourceVcdTmVcenterRead)
+	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
+		entityLabel:    labelVirtualCenter,
+		getTypeFunc:    getTmVcenterType,
+		createFunc:     vcdClient.CreateVcenter,
+		stateStoreFunc: setTmVcenterData,
+		readFunc:       resourceVcdTmVcenterRead,
+	}
+
+	// return create(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.CreateVcenter, setTmVcenterData, resourceVcdTmVcenterRead)
+	return create2(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
