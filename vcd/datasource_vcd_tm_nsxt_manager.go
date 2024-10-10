@@ -50,7 +50,7 @@ func datasourceVcdTmNsxtManagerRead(ctx context.Context, d *schema.ResourceData,
 	vcdClient := meta.(*VCDClient)
 	nsxtManager, err := vcdClient.GetTmNsxtManagerByName(d.Get("name").(string))
 	if err != nil {
-		return diag.Errorf("error retrieving NSX-T Manager: %s")
+		return diag.Errorf("error retrieving NSX-T Manager: %s", err)
 	}
 
 	err = setTmNsxtManagerData(d, nsxtManager.TmNsxtManager)

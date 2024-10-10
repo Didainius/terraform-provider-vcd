@@ -65,12 +65,12 @@ func resourceVcdTmNsxtManagerCreate(ctx context.Context, d *schema.ResourceData,
 
 	t, err := getTmNsxtManagerType(d)
 	if err != nil {
-		return diag.Errorf("error getting NSX-T Manager type: %s")
+		return diag.Errorf("error getting NSX-T Manager type: %s", err)
 	}
 
 	nsxtManager, err := vcdClient.CreateTmNsxtManager(t)
 	if err != nil {
-		return diag.Errorf("error creating NSX-T Manager: %s")
+		return diag.Errorf("error creating NSX-T Manager: %s", err)
 	}
 
 	d.SetId(nsxtManager.TmNsxtManager.ID)
@@ -82,12 +82,12 @@ func resourceVcdTmNsxtManagerUpdate(ctx context.Context, d *schema.ResourceData,
 
 	t, err := getTmNsxtManagerType(d)
 	if err != nil {
-		return diag.Errorf("error getting NSX-T Manager type: %s")
+		return diag.Errorf("error getting NSX-T Manager type: %s", err)
 	}
 
 	nsxtManager, err := vcdClient.GetTmNsxtManagerById(d.Id())
 	if err != nil {
-		return diag.Errorf("error retrieving NSX-T Manager: %s")
+		return diag.Errorf("error retrieving NSX-T Manager: %s", err)
 	}
 
 	_, err = nsxtManager.Update(t)
@@ -103,7 +103,7 @@ func resourceVcdTmNsxtManagerRead(ctx context.Context, d *schema.ResourceData, m
 
 	nsxtManager, err := vcdClient.GetTmNsxtManagerById(d.Id())
 	if err != nil {
-		return diag.Errorf("error retrieving NSX-T Manager: %s")
+		return diag.Errorf("error retrieving NSX-T Manager: %s", err)
 	}
 
 	err = setTmNsxtManagerData(d, nsxtManager.TmNsxtManager)

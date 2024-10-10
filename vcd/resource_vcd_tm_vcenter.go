@@ -13,12 +13,12 @@ import (
 func resourceVcdTmVcenter() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVcdTmVcenterCreate,
-		// ReadContext:   resourceVcdTmVcenterRead,
-		// UpdateContext: resourceVcdTmVcenterUpdate,
-		// DeleteContext: resourceVcdTmVcenterDelete,
-		// Importer: &schema.ResourceImporter{
-		// 	StateContext: resourceVcdTmVcenterImport,
-		// },
+		ReadContext:   resourceVcdTmVcenterRead,
+		UpdateContext: resourceVcdTmVcenterUpdate,
+		DeleteContext: resourceVcdTmVcenterDelete,
+		Importer: &schema.ResourceImporter{
+			StateContext: resourceVcdTmVcenterImport,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -138,14 +138,11 @@ func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, met
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
 		entityLabel:    labelVirtualCenter,
 		getTypeFunc:    getTmVcenterType,
-		createFunc:     vcdClient.CreateVcenter,
 		stateStoreFunc: setTmVcenterData,
+		createFunc:     vcdClient.CreateVcenter,
 		readFunc:       resourceVcdTmVcenterRead,
 	}
-
-	// return create(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.CreateVcenter, setTmVcenterData, resourceVcdTmVcenterRead)
-	return create2(ctx, d, meta, c)
-	// return nil
+	return createRes(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -163,14 +160,14 @@ func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, met
 	return deleteRes(ctx, d, meta, labelVirtualCenter, vcdClient.GetVCenterById)
 }
 
-// func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-// 	vcdClient := meta.(*VCDClient)
+func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	vcdClient := meta.(*VCDClient)
 
-// 	v, err := vcdClient.GetVCenterByName(d.Id())
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error retrieving vCenter by name: %s", err)
-// 	}
+	v, err := vcdClient.GetVCenterByName(d.Id())
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving vCenter by name: %s", err)
+	}
 
-// 	d.SetId(v.VSphereVCenter.VcId)
-// 	return []*schema.ResourceData{d}, nil
-// }
+	d.SetId(v.VSphereVCenter.VcId)
+	return []*schema.ResourceData{d}, nil
+}

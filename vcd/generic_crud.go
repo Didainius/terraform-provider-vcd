@@ -13,14 +13,6 @@ type updateDeleter[O any, I any] interface {
 	Delete() error
 }
 
-type updater[O, I any] interface {
-	Update(*I) (O, error)
-}
-
-type deleter interface {
-	Delete() error
-}
-
 type crudConfig[O updateDeleter[O, I], I any] struct {
 	// Mandatory parameters
 
@@ -42,7 +34,7 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 	// Delete
 }
 
-func create2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+func createRes[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
 	t, err := c.getTypeFunc(d)
 	if err != nil {
 		return diag.Errorf("error getting %s type: %s", c.entityLabel, err)
@@ -61,33 +53,6 @@ func create2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.Resour
 
 	return c.readFunc(ctx, d, meta)
 }
-
-// func create[I, O any](ctx context.Context,
-// 	d *schema.ResourceData,
-// 	meta interface{},
-// 	entityLabel string,
-// 	getTypeFunc func(d *schema.ResourceData) (*I, error),
-// 	createFunc func(config *I) (*O, error),
-// 	stateStoreFunc func(d *schema.ResourceData, outerType *O) error,
-// 	readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics) diag.Diagnostics {
-
-// 	t, err := getTypeFunc(d)
-// 	if err != nil {
-// 		return diag.Errorf("error getting %s type: %s", entityLabel, err)
-// 	}
-// 	///
-// 	createdEntity, err := createFunc(t)
-// 	if err != nil {
-// 		return diag.Errorf("error creating %s: %s", entityLabel, err)
-// 	}
-
-// 	err = stateStoreFunc(d, createdEntity)
-// 	if err != nil {
-// 		return diag.Errorf("error storing %s to state: %s", entityLabel, err)
-// 	}
-
-// 	return readFunc(ctx, d, meta)
-// }
 
 func update[O updateDeleter[O, I], I any](ctx context.Context,
 	d *schema.ResourceData,
@@ -147,3 +112,30 @@ func deleteRes[O updateDeleter[O, I], I any](ctx context.Context, d *schema.Reso
 
 	return nil
 }
+
+// func create[I, O any](ctx context.Context,
+// 	d *schema.ResourceData,
+// 	meta interface{},
+// 	entityLabel string,
+// 	getTypeFunc func(d *schema.ResourceData) (*I, error),
+// 	createFunc func(config *I) (*O, error),
+// 	stateStoreFunc func(d *schema.ResourceData, outerType *O) error,
+// 	readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics) diag.Diagnostics {
+
+// 	t, err := getTypeFunc(d)
+// 	if err != nil {
+// 		return diag.Errorf("error getting %s type: %s", entityLabel, err)
+// 	}
+// 	///
+// 	createdEntity, err := createFunc(t)
+// 	if err != nil {
+// 		return diag.Errorf("error creating %s: %s", entityLabel, err)
+// 	}
+
+// 	err = stateStoreFunc(d, createdEntity)
+// 	if err != nil {
+// 		return diag.Errorf("error storing %s to state: %s", entityLabel, err)
+// 	}
+
+// 	return readFunc(ctx, d, meta)
+// }
