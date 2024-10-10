@@ -31,11 +31,15 @@ func TestAccVcdTmVcenter(t *testing.T) {
 	testParamsNotEmpty(t, params)
 
 	configText1 := templateFill(testAccVcdTmVcenterStep1, params)
-	// params["FuncName"] = t.Name() + "-step2"
-	// configText2 := templateFill(testAccVcdTmVcenterStep2, params)
+	params["FuncName"] = t.Name() + "-step2"
+	configText2 := templateFill(testAccVcdTmVcenterStep2, params)
 
-	debugPrintf("#[DEBUG] CONFIGURATION step2: %s\n", configText1)
-	// debugPrintf("#[DEBUG] CONFIGURATION step1: %s\n", configText2)
+	params["FuncName"] = t.Name() + "-step3"
+	configText3 := templateFill(testAccVcdTmVcenterStep3, params)
+
+	debugPrintf("#[DEBUG] CONFIGURATION step1: %s\n", configText1)
+	debugPrintf("#[DEBUG] CONFIGURATION step2: %s\n", configText2)
+	debugPrintf("#[DEBUG] CONFIGURATION step3: %s\n", configText3)
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
 		return
@@ -49,20 +53,59 @@ func TestAccVcdTmVcenter(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "id"),
 					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "name", t.Name()),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "description", ""),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "is_enabled", "true"),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "has_proxy", "false"),
+
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "cluster_health_status"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "is_connected"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "listener_state"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "mode"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "uuid"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "version"),
 				),
 			},
-			// {
-			// 	Config: configText2,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resourceFieldsEqual("vcd_tm_org.test", "data.vcd_tm_org.test", nil),
-			// 	),
-			// },
-			// {
-			// 	ResourceName:      "vcd_tm_org.test",
-			// 	ImportState:       true,
-			// 	ImportStateVerify: true,
-			// 	ImportStateId:     params["Org"].(string),
-			// },
+			{
+				Config: configText2,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "id"),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "name", t.Name()+"-rename"),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "is_enabled", "false"),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "description", "description from Terraform"),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "has_proxy", "false"),
+
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "cluster_health_status"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "is_connected"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "listener_state"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "mode"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "uuid"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "version"),
+				),
+			},
+			{
+				Config: configText3,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "id"),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "name", t.Name()),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "description", ""),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "is_enabled", "true"),
+					resource.TestCheckResourceAttr("vcd_tm_vcenter.test", "has_proxy", "false"),
+
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "cluster_health_status"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "is_connected"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "listener_state"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "mode"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "uuid"),
+					resource.TestCheckResourceAttrSet("vcd_tm_vcenter.test", "version"),
+				),
+			},
+			{
+				ResourceName:            "vcd_tm_vcenter.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateId:           params["Testname"].(string),
+				ImportStateVerifyIgnore: []string{"password"},
+			},
 		},
 	})
 
@@ -75,7 +118,28 @@ resource "vcd_tm_vcenter" "test" {
   url        = "{{.VcenterUrl}}"
   username   = "{{.VcenterUsername}}"
   password   = "{{.VcenterPassword}}"
-  is_enabled = false
+  is_enabled = true
+}
+`
+
+const testAccVcdTmVcenterStep2 = `
+resource "vcd_tm_vcenter" "test" {
+  name        = "{{.Testname}}-rename"
+  description = "description from Terraform"
+  url         = "{{.VcenterUrl}}"
+  username    = "{{.VcenterUsername}}"
+  password    = "{{.VcenterPassword}}"
+  is_enabled  = false
+}
+`
+
+const testAccVcdTmVcenterStep3 = `
+resource "vcd_tm_vcenter" "test" {
+  name       = "{{.Testname}}"
+  url        = "{{.VcenterUrl}}"
+  username   = "{{.VcenterUsername}}"
+  password   = "{{.VcenterPassword}}"
+  is_enabled = true
 }
 `
 

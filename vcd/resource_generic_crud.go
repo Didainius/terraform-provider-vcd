@@ -2,16 +2,22 @@ package vcd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/vmware/go-vcloud-director/v2/util"
 )
 
+// updateDeleter is a type constraint to match only entities that have Update and Delete methods
 type updateDeleter[O any, I any] interface {
-	// *O
 	Update(*I) (O, error)
 	Delete() error
 }
+
+// type CreateContextFunc func(context.Context, *ResourceData, interface{}) diag.Diagnostics
+// type resourceHook
+type resourceHook[O any] func(O) error
 
 type crudConfig[O updateDeleter[O, I], I any] struct {
 	// Mandatory parameters
@@ -32,6 +38,7 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 	// Read
 
 	// Delete
+	preDeleteHooks []resourceHook[O]
 }
 
 func createResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
@@ -92,9 +99,32 @@ func deleteResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema
 		return diag.Errorf("error getting %s: %s", c.entityLabel, err)
 	}
 
+	err = executeHooks(retrievedEntity, c.preDeleteHooks)
+	if err != nil {
+		return diag.Errorf("error executing %s hooks: %s", c.entityLabel, err)
+	}
+
 	err = retrievedEntity.Delete()
 	if err != nil {
 		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
+	}
+
+	return nil
+}
+
+func executeHooks[O any](outerEntity O, runList []resourceHook[O]) error {
+	if len(runList) == 0 {
+		util.Logger.Printf("[DEBUG] No hooks to execute")
+		return nil
+	}
+
+	var err error
+	for i := range runList {
+		err = runList[i](outerEntity)
+		if err != nil {
+			return fmt.Errorf("error executing hook: %s", err)
+		}
+
 	}
 
 	return nil

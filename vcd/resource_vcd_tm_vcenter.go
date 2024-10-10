@@ -10,7 +10,7 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
-const labelVirtualCenter = "Virtual Center"
+const labelVirtualCenter = "vCenter Server"
 
 func resourceVcdTmVcenter() *schema.Resource {
 	return &schema.Resource{
@@ -169,9 +169,19 @@ func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta 
 
 func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
+
+	// vCenter needs to be disabled before removal
+	preDeleteHook := func(v *govcd.VCenter) error {
+		if v.VSphereVCenter.IsEnabled {
+			return v.Disable()
+		}
+		return nil
+	}
+
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
-		entityLabel:   labelVirtualCenter,
-		getEntityFunc: vcdClient.GetVCenterById,
+		entityLabel:    labelVirtualCenter,
+		getEntityFunc:  vcdClient.GetVCenterById,
+		preDeleteHooks: []resourceHook[*govcd.VCenter]{preDeleteHook},
 	}
 
 	return deleteResource(ctx, d, meta, c)
@@ -182,7 +192,7 @@ func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, met
 
 	v, err := vcdClient.GetVCenterByName(d.Id())
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving vCenter by name: %s", err)
+		return nil, fmt.Errorf("error retrieving %s by name: %s", labelVirtualCenter, err)
 	}
 
 	d.SetId(v.VSphereVCenter.VcId)
