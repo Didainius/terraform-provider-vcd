@@ -28,9 +28,9 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 	entityLabel string
 
 	// Create
-	getTypeFunc func(d *schema.ResourceData) (*I, error)
-	// createFunc     func(config *I) (*O, error)
-	// stateStoreFunc func(d *schema.ResourceData, outerType *O) error
+	getTypeFunc    func(d *schema.ResourceData) (*I, error)
+	createFunc     func(config *I) (*O, error)
+	stateStoreFunc func(d *schema.ResourceData, outerType *O) error
 
 	// readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
 
@@ -63,9 +63,8 @@ func create2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.Resour
 	if err != nil {
 		return diag.Errorf("error getting %s type: %s", c.entityLabel, err)
 	}
-
 	return nil
-	// ///
+	///
 	// createdEntity, err := c.createFunc(t)
 	// if err != nil {
 	// 	return diag.Errorf("error creating %s: %s", c.entityLabel, err)
