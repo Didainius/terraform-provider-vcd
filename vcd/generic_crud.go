@@ -32,7 +32,7 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 	createFunc     func(config *I) (*O, error)
 	stateStoreFunc func(d *schema.ResourceData, outerType *O) error
 
-	// readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
+	readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
 
 	// // Update
 	// getEntityFunc func(id string) (O, error)
@@ -59,23 +59,23 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 }
 
 func create2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
-	_, err := c.getTypeFunc(d)
+	t, err := c.getTypeFunc(d)
 	if err != nil {
 		return diag.Errorf("error getting %s type: %s", c.entityLabel, err)
 	}
-	return nil
+
 	///
-	// createdEntity, err := c.createFunc(t)
-	// if err != nil {
-	// 	return diag.Errorf("error creating %s: %s", c.entityLabel, err)
-	// }
+	createdEntity, err := c.createFunc(t)
+	if err != nil {
+		return diag.Errorf("error creating %s: %s", c.entityLabel, err)
+	}
 
-	// err = c.stateStoreFunc(d, createdEntity)
-	// if err != nil {
-	// 	return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
-	// }
+	err = c.stateStoreFunc(d, createdEntity)
+	if err != nil {
+		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
+	}
 
-	// return c.readFunc(ctx, d, meta)
+	return c.readFunc(ctx, d, meta)
 }
 
 // func create[I, O any](ctx context.Context,
