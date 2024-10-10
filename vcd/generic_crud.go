@@ -80,6 +80,26 @@ func update[O updateDeleter[O, I], I any](ctx context.Context,
 	return readFunc(ctx, d, meta)
 }
 
+func updateRes[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+
+	t, err := c.getTypeFunc(d)
+	if err != nil {
+		return diag.Errorf("error getting %s type: %s", c.entityLabel, err)
+	}
+	///
+	retrievedEntity, err := c.getEntityFunc(d.Id())
+	if err != nil {
+		return diag.Errorf("error getting %s: %s", c.entityLabel, err)
+	}
+
+	_, err = retrievedEntity.Update(t)
+	if err != nil {
+		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
+	}
+
+	return c.readFunc(ctx, d, meta)
+}
+
 func read[O any](ctx context.Context, d *schema.ResourceData, meta interface{}, entityLabel string, getEntityFunc func(id string) (*O, error), stateStoreFunc func(d *schema.ResourceData, outerType *O) error) diag.Diagnostics {
 	retrievedEntity, err := getEntityFunc(d.Id())
 	if err != nil {
@@ -89,6 +109,20 @@ func read[O any](ctx context.Context, d *schema.ResourceData, meta interface{}, 
 	err = stateStoreFunc(d, retrievedEntity)
 	if err != nil {
 		return diag.Errorf("error storing %s to state: %s", entityLabel, err)
+	}
+
+	return nil
+}
+
+func readRes[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+	retrievedEntity, err := c.getEntityFunc(d.Id())
+	if err != nil {
+		return diag.Errorf("error getting %s: %s", c.entityLabel, err)
+	}
+
+	err = c.stateStoreFunc(d, retrievedEntity)
+	if err != nil {
+		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
 	}
 
 	return nil
@@ -108,6 +142,20 @@ func deleteRes[O updateDeleter[O, I], I any](ctx context.Context, d *schema.Reso
 	err = retrievedEntity.Delete()
 	if err != nil {
 		return diag.Errorf("error storing %s to state: %s", entityLabel, err)
+	}
+
+	return nil
+}
+
+func deleteRes2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+	retrievedEntity, err := c.getEntityFunc(d.Id())
+	if err != nil {
+		return diag.Errorf("error getting %s: %s", c.entityLabel, err)
+	}
+
+	err = retrievedEntity.Delete()
+	if err != nil {
+		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
 	}
 
 	return nil

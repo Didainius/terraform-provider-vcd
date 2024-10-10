@@ -147,17 +147,34 @@ func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, met
 
 func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-	return update(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.GetVCenterById, resourceVcdTmVcenterRead)
+	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
+		entityLabel:   labelVirtualCenter,
+		getTypeFunc:   getTmVcenterType,
+		getEntityFunc: vcdClient.GetVCenterById,
+		readFunc:      resourceVcdTmVcenterRead,
+	}
+
+	return updateRes(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-	return read(ctx, d, meta, labelVirtualCenter, vcdClient.GetVCenterById, setTmVcenterData)
+	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
+		entityLabel:    labelVirtualCenter,
+		getEntityFunc:  vcdClient.GetVCenterById,
+		stateStoreFunc: setTmVcenterData,
+	}
+	return readRes(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-	return deleteRes(ctx, d, meta, labelVirtualCenter, vcdClient.GetVCenterById)
+	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
+		entityLabel:   labelVirtualCenter,
+		getEntityFunc: vcdClient.GetVCenterById,
+	}
+
+	return deleteRes2(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
