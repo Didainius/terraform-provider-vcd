@@ -10,6 +10,8 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
+const labelVirtualCenter = "Virtual Center"
+
 func resourceVcdTmVcenter() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVcdTmVcenterCreate,
@@ -93,8 +95,6 @@ func resourceVcdTmVcenter() *schema.Resource {
 	}
 }
 
-const labelVirtualCenter = "Virtual Center"
-
 func getTmVcenterType(d *schema.ResourceData) (*types.VSphereVirtualCenter, error) {
 	t := &types.VSphereVirtualCenter{
 		Name:        d.Get("name").(string),
@@ -142,7 +142,7 @@ func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, met
 		createFunc:     vcdClient.CreateVcenter,
 		readFunc:       resourceVcdTmVcenterRead,
 	}
-	return createRes(ctx, d, meta, c)
+	return createResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -154,7 +154,7 @@ func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, met
 		readFunc:      resourceVcdTmVcenterRead,
 	}
 
-	return updateRes(ctx, d, meta, c)
+	return updateResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -164,7 +164,7 @@ func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta 
 		getEntityFunc:  vcdClient.GetVCenterById,
 		stateStoreFunc: setTmVcenterData,
 	}
-	return readRes(ctx, d, meta, c)
+	return readResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -174,7 +174,7 @@ func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, met
 		getEntityFunc: vcdClient.GetVCenterById,
 	}
 
-	return deleteRes2(ctx, d, meta, c)
+	return deleteResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
