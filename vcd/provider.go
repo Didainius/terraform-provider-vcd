@@ -182,7 +182,7 @@ var globalDataSourceMap = map[string]*schema.Resource{
 	"vcd_tm_supervisor":      datasourceVcdTmSupervisor(),     // 4.0
 	"vcd_tm_supervisor_zone": datasourceVcdTmSupervisorZone(), // 4.0
 	"vcd_tm_nsxt_manager":    datasourceVcdTmNsxtManager(),    // 4.0
-	"vcd_tm_vcenter":         datasourceVcdVcenter(),          // 3.0
+	"vcd_tm_vcenter":         datasourceVcdTmVcenter(),        // 4.0
 }
 
 var globalResourceMap = map[string]*schema.Resource{

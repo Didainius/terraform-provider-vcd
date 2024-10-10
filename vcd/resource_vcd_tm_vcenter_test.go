@@ -37,9 +37,13 @@ func TestAccVcdTmVcenter(t *testing.T) {
 	params["FuncName"] = t.Name() + "-step3"
 	configText3 := templateFill(testAccVcdTmVcenterStep3, params)
 
+	params["FuncName"] = t.Name() + "-step4"
+	configText4 := templateFill(testAccVcdTmVcenterStep4DS, params)
+
 	debugPrintf("#[DEBUG] CONFIGURATION step1: %s\n", configText1)
 	debugPrintf("#[DEBUG] CONFIGURATION step2: %s\n", configText2)
 	debugPrintf("#[DEBUG] CONFIGURATION step3: %s\n", configText3)
+	debugPrintf("#[DEBUG] CONFIGURATION step4: %s\n", configText4)
 	if vcdShortTest {
 		t.Skip(acceptanceTestsSkipped)
 		return
@@ -106,6 +110,12 @@ func TestAccVcdTmVcenter(t *testing.T) {
 				ImportStateId:           params["Testname"].(string),
 				ImportStateVerifyIgnore: []string{"password"},
 			},
+			{
+				Config: configText4,
+				Check: resource.ComposeTestCheckFunc(
+					resourceFieldsEqual("vcd_tm_vcenter.test", "vcd_tm_vcenter.test", []string{"%"}),
+				),
+			},
 		},
 	})
 
@@ -143,8 +153,8 @@ resource "vcd_tm_vcenter" "test" {
 }
 `
 
-// const testAccVcdTmVcenterStep2 = testAccVcdTmVcenterStep1 + `
-// data "vcd_tm_org" "test" {
-//   name = vcd_tm_org.test.name
-// }
-// `
+const testAccVcdTmVcenterStep4DS = testAccVcdTmVcenterStep3 + `
+data "vcd_tm_vcenter" "test" {
+  name = "{{.Testname}}"
+}
+`

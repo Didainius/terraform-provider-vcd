@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/util"
 )
 
@@ -20,15 +21,12 @@ type updateDeleter[O any, I any] interface {
 type resourceHook[O any] func(O) error
 
 type crudConfig[O updateDeleter[O, I], I any] struct {
-	// Mandatory parameters
-
-	// entityLabel contains friendly entity name that is used for logging meaningful errors
 	entityLabel string
 
-	// Create
 	getTypeFunc    func(d *schema.ResourceData) (*I, error)
-	createFunc     func(config *I) (O, error)
 	stateStoreFunc func(d *schema.ResourceData, outerType O) error
+
+	createFunc func(config *I) (O, error)
 
 	readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
 
@@ -82,7 +80,25 @@ func updateResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema
 func readResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
 	retrievedEntity, err := c.getEntityFunc(d.Id())
 	if err != nil {
+		if govcd.ContainsNotFound(err) {
+			util.Logger.Printf("[DEBUG] entity '%s' with ID '%s' not found. Removing from state", c.entityLabel, d.Id())
+		}
 		return diag.Errorf("error getting %s: %s", c.entityLabel, err)
+	}
+
+	err = c.stateStoreFunc(d, retrievedEntity)
+	if err != nil {
+		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
+	}
+
+	return nil
+}
+
+func readDatasource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+	entityName := d.Get("name").(string)
+	retrievedEntity, err := c.getEntityFunc(entityName)
+	if err != nil {
+		return diag.Errorf("error getting %s by Name '%s': %s", c.entityLabel, entityName, err)
 	}
 
 	err = c.stateStoreFunc(d, retrievedEntity)
