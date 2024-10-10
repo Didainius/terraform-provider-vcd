@@ -84,7 +84,7 @@ func resourceVcdTmNsxtManagerUpdate(ctx context.Context, d *schema.ResourceData,
 		readFunc:      resourceVcdTmNsxtManagerRead,
 	}
 
-	return readResource(ctx, d, meta, c)
+	return updateResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmNsxtManagerRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

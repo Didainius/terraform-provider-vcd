@@ -14,7 +14,12 @@ func TestAccVcdTmNsxtManager(t *testing.T) {
 	skipIfNotSysAdmin(t)
 	skipIfNotTm(t)
 
+	if !testConfig.Tm.CreateNsxtManager {
+		t.Skipf("Skipping vCenter creation")
+	}
+
 	var params = StringMap{
+		"Testname": t.Name(),
 		"Username": testConfig.Tm.NsxtManagerUsername,
 		"Password": testConfig.Tm.NsxtManagerPassword,
 		"Url":      testConfig.Tm.NsxtManagerUrl,
@@ -40,20 +45,20 @@ func TestAccVcdTmNsxtManager(t *testing.T) {
 			{
 				Config: configText1,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("vcd_tm_nsxt_manager.test", "name", "tf-test"),
+					resource.TestCheckResourceAttr("vcd_tm_nsxt_manager.test", "name", params["Testname"].(string)),
 				),
 			},
 			{
 				Config: configText2,
 				Check: resource.ComposeTestCheckFunc(
-					resourceFieldsEqual("vcd_tm_nsxt_manager.test", "data.vcd_tm_nsxt_manager.test", nil),
+					resourceFieldsEqual("vcd_tm_nsxt_manager.test", "data.vcd_tm_nsxt_manager.test", []string{"%"}),
 				),
 			},
 			{
 				ResourceName:      "vcd_tm_nsxt_manager.test",
 				ImportState:       true,
 				ImportStateVerify: true,
-				ImportStateId:     params["Org"].(string),
+				ImportStateId:     params["Testname"].(string),
 			},
 		},
 	})
@@ -63,11 +68,11 @@ func TestAccVcdTmNsxtManager(t *testing.T) {
 
 const testAccVcdTmNsxtManagerStep1 = `
 resource "vcd_tm_nsxt_manager" "test" {
-  name                   = "tf-test"
+  name                   = "{{.Testname}}"
   description            = "terraform test"
-  username               = "{{.Username}}
-  password               = "{{.Password}}
-  url                    = "{{.Url}}
+  username               = "{{.Username}}"
+  password               = "{{.Password}}"
+  url                    = "{{.Url}}"
   network_provider_scope = ""
 }
 `

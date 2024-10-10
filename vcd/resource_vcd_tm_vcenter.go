@@ -153,7 +153,7 @@ func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, met
 		readFunc:      resourceVcdTmVcenterRead,
 	}
 
-	return readResource(ctx, d, meta, c)
+	return updateResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

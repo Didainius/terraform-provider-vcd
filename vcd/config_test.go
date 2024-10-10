@@ -112,6 +112,7 @@ type TestConfig struct {
 		Region string `json:"region"` //
 		Vdc    string `json:"vdc"`    //
 
+		CreateNsxtManager   bool   `json:"createNsxtManager"`
 		NsxtManagerUsername string `json:"nsxtManagerUsername"`
 		NsxtManagerPassword string `json:"nsxtManagerPassword"`
 		NsxtManagerUrl      string `json:"nsxtManagerUrl"`
