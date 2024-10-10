@@ -148,10 +148,10 @@ func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, met
 	// return nil
 }
 
-// func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-// 	vcdClient := meta.(*VCDClient)
-// 	return update(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.GetVCenterById, resourceVcdTmVcenterRead)
-// }
+func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	vcdClient := meta.(*VCDClient)
+	return update(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.GetVCenterById, resourceVcdTmVcenterRead)
+}
 
 func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
