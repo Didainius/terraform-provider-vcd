@@ -134,13 +134,13 @@ func setTmVcenterData(d *schema.ResourceData, v *govcd.VCenter) error {
 }
 
 func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// vcdClient := meta.(*VCDClient)
+	vcdClient := meta.(*VCDClient)
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
-		entityLabel: labelVirtualCenter,
-		getTypeFunc: getTmVcenterType,
-		// createFunc:     vcdClient.CreateVcenter,
-		// stateStoreFunc: setTmVcenterData,
-		// readFunc:       resourceVcdTmVcenterRead,
+		entityLabel:    labelVirtualCenter,
+		getTypeFunc:    getTmVcenterType,
+		createFunc:     vcdClient.CreateVcenter,
+		stateStoreFunc: setTmVcenterData,
+		readFunc:       resourceVcdTmVcenterRead,
 	}
 
 	// return create(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.CreateVcenter, setTmVcenterData, resourceVcdTmVcenterRead)
@@ -153,15 +153,15 @@ func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, met
 // 	return update(ctx, d, meta, labelVirtualCenter, getTmVcenterType, vcdClient.GetVCenterById, resourceVcdTmVcenterRead)
 // }
 
-// func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-// 	vcdClient := meta.(*VCDClient)
-// 	return read(ctx, d, meta, labelVirtualCenter, vcdClient.GetVCenterById, setTmVcenterData)
-// }
+func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	vcdClient := meta.(*VCDClient)
+	return read(ctx, d, meta, labelVirtualCenter, vcdClient.GetVCenterById, setTmVcenterData)
+}
 
-// func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-// 	vcdClient := meta.(*VCDClient)
-// 	return deleteRes(ctx, d, meta, labelVirtualCenter, vcdClient.GetVCenterById)
-// }
+func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	vcdClient := meta.(*VCDClient)
+	return deleteRes(ctx, d, meta, labelVirtualCenter, vcdClient.GetVCenterById)
+}
 
 // func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 // 	vcdClient := meta.(*VCDClient)

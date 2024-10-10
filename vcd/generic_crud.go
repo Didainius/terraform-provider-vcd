@@ -29,33 +29,17 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 
 	// Create
 	getTypeFunc    func(d *schema.ResourceData) (*I, error)
-	createFunc     func(config *I) (*O, error)
-	stateStoreFunc func(d *schema.ResourceData, outerType *O) error
+	createFunc     func(config *I) (O, error)
+	stateStoreFunc func(d *schema.ResourceData, outerType O) error
 
 	readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
 
 	// // Update
-	// getEntityFunc func(id string) (O, error)
+	getEntityFunc func(id string) (O, error)
 
 	// Read
 
 	// Delete
-
-	// // endpoint in the usual format (e.g. types.OpenApiPathVersion1_0_0 + types.OpenApiEndpointNsxtSegmentIpDiscoveryProfiles)
-	// endpoint string
-
-	// // Optional parameters
-
-	// // endpointParams contains a slice of strings that will be used to construct the request URL. It will
-	// // initially replace '%s' placeholders in the `endpoint` (if any) and will add them as suffix
-	// // afterwards
-	// endpointParams []string
-
-	// // queryParameters will be passed as GET queries to the URL. Usually they are used for API filtering parameters
-	// queryParameters url.Values
-	// // additionalHeader can be used to pass additional headers for API calls. One of the common purposes is to pass
-	// // tenant context
-	// additionalHeader map[string]string
 }
 
 func create2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
@@ -105,7 +89,6 @@ func create2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.Resour
 // 	return readFunc(ctx, d, meta)
 // }
 
-/*
 func update[O updateDeleter[O, I], I any](ctx context.Context,
 	d *schema.ResourceData,
 	meta interface{},
@@ -164,4 +147,3 @@ func deleteRes[O updateDeleter[O, I], I any](ctx context.Context, d *schema.Reso
 
 	return nil
 }
-*/
