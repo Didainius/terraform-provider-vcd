@@ -7,8 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-type updateDeleter[O, I any] interface {
-	Update(*I) (O, error)
+type updateDeleter[O any, I any] interface {
+	Update(*I) (*O, error)
 	Delete() error
 }
 
@@ -28,8 +28,8 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 
 	// Create
 	getTypeFunc    func(d *schema.ResourceData) (*I, error)
-	createFunc     func(config *I) (O, error)
-	stateStoreFunc func(d *schema.ResourceData, outerType O) error
+	createFunc     func(config *I) (*O, error)
+	stateStoreFunc func(d *schema.ResourceData, outerType *O) error
 
 	readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
 
@@ -57,11 +57,7 @@ type crudConfig[O updateDeleter[O, I], I any] struct {
 	// additionalHeader map[string]string
 }
 
-func create2[O updateDeleter[O, I], I any](ctx context.Context,
-	d *schema.ResourceData,
-	meta interface{},
-	c crudConfig[O, I]) diag.Diagnostics {
-
+func create2[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
 	t, err := c.getTypeFunc(d)
 	if err != nil {
 		return diag.Errorf("error getting %s type: %s", c.entityLabel, err)
