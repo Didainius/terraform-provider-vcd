@@ -109,7 +109,7 @@ func getTmVcenterType(d *schema.ResourceData) (*types.VSphereVirtualCenter, erro
 
 func setTmVcenterData(d *schema.ResourceData, v *govcd.VCenter) error {
 	if v == nil || v.VSphereVCenter == nil {
-		return fmt.Errorf("nil object")
+		return fmt.Errorf("nil object for %s", labelVirtualCenter)
 	}
 
 	dSet(d, "name", v.VSphereVCenter.Name)
@@ -153,7 +153,7 @@ func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, met
 		readFunc:      resourceVcdTmVcenterRead,
 	}
 
-	return updateResource(ctx, d, meta, c)
+	return readResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -170,7 +170,7 @@ func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, met
 	vcdClient := meta.(*VCDClient)
 
 	// vCenter needs to be disabled before removal
-	preDeleteHook := func(v *govcd.VCenter) error {
+	disableBeforeDelete := func(v *govcd.VCenter) error {
 		if v.VSphereVCenter.IsEnabled {
 			return v.Disable()
 		}
@@ -180,7 +180,7 @@ func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, met
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
 		entityLabel:    labelVirtualCenter,
 		getEntityFunc:  vcdClient.GetVCenterById,
-		preDeleteHooks: []resourceHook[*govcd.VCenter]{preDeleteHook},
+		preDeleteHooks: []resourceHook[*govcd.VCenter]{disableBeforeDelete},
 	}
 
 	return deleteResource(ctx, d, meta, c)

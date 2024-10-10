@@ -5,6 +5,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/vmware/go-vcloud-director/v2/govcd"
+	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
 func datasourceVcdTmNsxtManager() *schema.Resource {
@@ -48,15 +50,10 @@ func datasourceVcdTmNsxtManager() *schema.Resource {
 
 func datasourceVcdTmNsxtManagerRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-	nsxtManager, err := vcdClient.GetTmNsxtManagerByName(d.Get("name").(string))
-	if err != nil {
-		return diag.Errorf("error retrieving NSX-T Manager: %s", err)
+	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
+		entityLabel:    labelTmNsxtManager,
+		getEntityFunc:  vcdClient.GetTmNsxtManagerByName,
+		stateStoreFunc: setTmNsxtManagerData,
 	}
-
-	err = setTmNsxtManagerData(d, nsxtManager.TmNsxtManager)
-	if err != nil {
-		return diag.Errorf("error storing NSX-T Manager to state: %s", err)
-	}
-
-	return nil
+	return readDatasource(ctx, d, meta, c)
 }

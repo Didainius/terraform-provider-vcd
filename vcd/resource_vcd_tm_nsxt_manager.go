@@ -6,8 +6,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
+
+const labelTmNsxtManager = "NSX-T Manager"
 
 func resourceVcdTmNsxtManager() *schema.Resource {
 	return &schema.Resource{
@@ -62,72 +65,56 @@ func resourceVcdTmNsxtManager() *schema.Resource {
 
 func resourceVcdTmNsxtManagerCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-
-	t, err := getTmNsxtManagerType(d)
-	if err != nil {
-		return diag.Errorf("error getting NSX-T Manager type: %s", err)
+	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
+		entityLabel:    labelTmNsxtManager,
+		getTypeFunc:    getTmNsxtManagerType,
+		stateStoreFunc: setTmNsxtManagerData,
+		createFunc:     vcdClient.CreateTmNsxtManager,
+		readFunc:       resourceVcdTmNsxtManagerRead,
 	}
-
-	nsxtManager, err := vcdClient.CreateTmNsxtManager(t)
-	if err != nil {
-		return diag.Errorf("error creating NSX-T Manager: %s", err)
-	}
-
-	d.SetId(nsxtManager.TmNsxtManager.ID)
-	return resourceVcdTmNsxtManagerRead(ctx, d, meta)
+	return createResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmNsxtManagerUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-
-	t, err := getTmNsxtManagerType(d)
-	if err != nil {
-		return diag.Errorf("error getting NSX-T Manager type: %s", err)
+	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
+		entityLabel:   labelTmNsxtManager,
+		getTypeFunc:   getTmNsxtManagerType,
+		getEntityFunc: vcdClient.GetTmNsxtManagerById,
+		readFunc:      resourceVcdTmNsxtManagerRead,
 	}
 
-	nsxtManager, err := vcdClient.GetTmNsxtManagerById(d.Id())
-	if err != nil {
-		return diag.Errorf("error retrieving NSX-T Manager: %s", err)
-	}
-
-	_, err = nsxtManager.Update(t)
-	if err != nil {
-		return diag.Errorf("error updating NSX-T Manager: %s", err)
-	}
-
-	return resourceVcdTmNsxtManagerRead(ctx, d, meta)
+	return readResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmNsxtManagerRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-
-	nsxtManager, err := vcdClient.GetTmNsxtManagerById(d.Id())
-	if err != nil {
-		return diag.Errorf("error retrieving NSX-T Manager: %s", err)
+	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
+		entityLabel:    labelTmNsxtManager,
+		getEntityFunc:  vcdClient.GetTmNsxtManagerById,
+		stateStoreFunc: setTmNsxtManagerData,
 	}
-
-	err = setTmNsxtManagerData(d, nsxtManager.TmNsxtManager)
-	if err != nil {
-		return diag.Errorf("error storing NSX-T Manager to state: %s", err)
-	}
-
-	return nil
+	return readResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmNsxtManagerDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 
-	nsxtManager, err := vcdClient.GetTmNsxtManagerById(d.Id())
-	if err != nil {
-		return diag.Errorf("error retrieving NSX-T Manager: %s", err)
+	// // vCenter needs to be disabled before removal
+	// disableBeforeDelete := func(v *govcd.VCenter) error {
+	// 	if v.VSphereVCenter.IsEnabled {
+	// 		return v.Disable()
+	// 	}
+	// 	return nil
+	// }
+
+	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
+		entityLabel:   labelTmNsxtManager,
+		getEntityFunc: vcdClient.GetTmNsxtManagerById,
+		// preDeleteHooks: []resourceHook[*govcd.VCenter]{disableBeforeDelete},
 	}
 
-	err = nsxtManager.Delete()
-	if err != nil {
-		return diag.Errorf("error deleting NSX-T Manager: %s", err)
-	}
-
-	return nil
+	return deleteResource(ctx, d, meta, c)
 }
 
 func resourceVcdTmNsxtManagerImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
@@ -154,14 +141,20 @@ func getTmNsxtManagerType(d *schema.ResourceData) (*types.TmNsxtManager, error) 
 	return t, nil
 }
 
-func setTmNsxtManagerData(d *schema.ResourceData, t *types.TmNsxtManager) error {
-	dSet(d, "name", t.Name)
-	dSet(d, "description", t.Description)
-	dSet(d, "username", t.Username)
-	dSet(d, "password", t.Password)
-	dSet(d, "url", t.URL)
-	dSet(d, "network_provider_scope", t.NetworkProviderScope)
-	dSet(d, "status", t.Status)
+func setTmNsxtManagerData(d *schema.ResourceData, t *govcd.TmNsxtManager) error {
+	if t == nil || t.TmNsxtManager == nil {
+		return fmt.Errorf("nil object for %s", labelTmNsxtManager)
+	}
+	n := t.TmNsxtManager
+
+	d.SetId(n.ID)
+	dSet(d, "name", n.Name)
+	dSet(d, "description", n.Description)
+	dSet(d, "username", n.Username)
+	dSet(d, "password", n.Password)
+	dSet(d, "url", n.URL)
+	dSet(d, "network_provider_scope", n.NetworkProviderScope)
+	dSet(d, "status", n.Status)
 
 	return nil
 }
