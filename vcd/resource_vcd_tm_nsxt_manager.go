@@ -49,6 +49,11 @@ func resourceVcdTmNsxtManager() *schema.Resource {
 				Required:    true,
 				Description: "URL of NSX-T Manager",
 			},
+			"auto_trust_certificate": {
+				Type:        schema.TypeBool,
+				Required:    true,
+				Description: fmt.Sprintf("Defines if the %s certificate should automatically be trusted", labelVirtualCenter),
+			},
 			"network_provider_scope": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -66,11 +71,12 @@ func resourceVcdTmNsxtManager() *schema.Resource {
 func resourceVcdTmNsxtManagerCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
-		entityLabel:    labelTmNsxtManager,
-		getTypeFunc:    getTmNsxtManagerType,
-		stateStoreFunc: setTmNsxtManagerData,
-		createFunc:     vcdClient.CreateTmNsxtManager,
-		readFunc:       resourceVcdTmNsxtManagerRead,
+		entityLabel:      labelTmNsxtManager,
+		getTypeFunc:      getTmNsxtManagerType,
+		stateStoreFunc:   setTmNsxtManagerData,
+		createFunc:       vcdClient.CreateTmNsxtManager,
+		resourceReadFunc: resourceVcdTmNsxtManagerRead,
+		preCreateHooks:   []beforeCreateHook{trustHostCertificate("url", "auto_trust_certificate")},
 	}
 	return createResource(ctx, d, meta, c)
 }
@@ -78,10 +84,10 @@ func resourceVcdTmNsxtManagerCreate(ctx context.Context, d *schema.ResourceData,
 func resourceVcdTmNsxtManagerUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
-		entityLabel:   labelTmNsxtManager,
-		getTypeFunc:   getTmNsxtManagerType,
-		getEntityFunc: vcdClient.GetTmNsxtManagerById,
-		readFunc:      resourceVcdTmNsxtManagerRead,
+		entityLabel:      labelTmNsxtManager,
+		getTypeFunc:      getTmNsxtManagerType,
+		getEntityFunc:    vcdClient.GetTmNsxtManagerById,
+		resourceReadFunc: resourceVcdTmNsxtManagerRead,
 	}
 
 	return updateResource(ctx, d, meta, c)
@@ -99,14 +105,6 @@ func resourceVcdTmNsxtManagerRead(ctx context.Context, d *schema.ResourceData, m
 
 func resourceVcdTmNsxtManagerDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-
-	// // vCenter needs to be disabled before removal
-	// disableBeforeDelete := func(v *govcd.VCenter) error {
-	// 	if v.VSphereVCenter.IsEnabled {
-	// 		return v.Disable()
-	// 	}
-	// 	return nil
-	// }
 
 	c := crudConfig[*govcd.TmNsxtManager, types.TmNsxtManager]{
 		entityLabel:   labelTmNsxtManager,

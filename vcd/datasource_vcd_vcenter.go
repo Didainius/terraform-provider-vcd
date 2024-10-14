@@ -12,7 +12,7 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
-func datasourceVcdVcenter() *schema.Resource {
+func datasourceVcdVcenter2() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: datasourceVcenterRead,
 		Schema: map[string]*schema.Schema{
@@ -58,7 +58,7 @@ func datasourceVcenterRead(_ context.Context, d *schema.ResourceData, meta inter
 
 	vcs, err := govcd.QueryVirtualCenters(vcdClient.VCDClient, "name=="+url.QueryEscape(vCenterName))
 	if err != nil {
-		return diag.Errorf("error occured while querying vCenters: %s", err)
+		return diag.Errorf("error occurred while querying vCenters: %s", err)
 	}
 
 	if len(vcs) == 0 {

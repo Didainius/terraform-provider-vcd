@@ -16,24 +16,29 @@ type updateDeleter[O any, I any] interface {
 	Delete() error
 }
 
-// type CreateContextFunc func(context.Context, *ResourceData, interface{}) diag.Diagnostics
-// type resourceHook
 type resourceHook[O any] func(O) error
+type beforeCreateHook func(*VCDClient, *schema.ResourceData) error
 
 type crudConfig[O updateDeleter[O, I], I any] struct {
+	// entityLabel to use in logs and
 	entityLabel string
 
-	getTypeFunc    func(d *schema.ResourceData) (*I, error)
+	// getTypeFunc is responsible for converting schema fields to inner type
+	getTypeFunc func(d *schema.ResourceData) (*I, error)
+	// stateStoreFunc is responsible for storing state
 	stateStoreFunc func(d *schema.ResourceData, outerType O) error
 
+	// createFunc is the function that can create an outer entity based on inner entity config
+	// (which is created by 'getTypeFunc')
 	createFunc func(config *I) (O, error)
 
-	readFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
+	// resourceReadFunc
+	resourceReadFunc func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
 
-	// // Update
 	getEntityFunc func(id string) (O, error)
 
-	// Read
+	// pre-create hook
+	preCreateHooks []beforeCreateHook
 
 	// Delete
 	preDeleteHooks []resourceHook[O]
@@ -43,6 +48,12 @@ func createResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema
 	t, err := c.getTypeFunc(d)
 	if err != nil {
 		return diag.Errorf("error getting %s type: %s", c.entityLabel, err)
+	}
+
+	vcdClient := meta.(*VCDClient)
+	err = executeBefore(vcdClient, d, c.preCreateHooks)
+	if err != nil {
+		return diag.Errorf("error executing pre-delete %s hooks: %s", c.entityLabel, err)
 	}
 
 	createdEntity, err := c.createFunc(t)
@@ -55,7 +66,7 @@ func createResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema
 		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
 	}
 
-	return c.readFunc(ctx, d, meta)
+	return c.resourceReadFunc(ctx, d, meta)
 }
 
 func updateResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
@@ -74,10 +85,10 @@ func updateResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema
 		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
 	}
 
-	return c.readFunc(ctx, d, meta)
+	return c.resourceReadFunc(ctx, d, meta)
 }
 
-func readResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+func readResource[O updateDeleter[O, I], I any](_ context.Context, d *schema.ResourceData, _ interface{}, c crudConfig[O, I]) diag.Diagnostics {
 	retrievedEntity, err := c.getEntityFunc(d.Id())
 	if err != nil {
 		if govcd.ContainsNotFound(err) {
@@ -94,7 +105,7 @@ func readResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.R
 	return nil
 }
 
-func readDatasource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+func readDatasource[O updateDeleter[O, I], I any](_ context.Context, d *schema.ResourceData, _ interface{}, c crudConfig[O, I]) diag.Diagnostics {
 	entityName := d.Get("name").(string)
 	retrievedEntity, err := c.getEntityFunc(entityName)
 	if err != nil {
@@ -109,7 +120,7 @@ func readDatasource[O updateDeleter[O, I], I any](ctx context.Context, d *schema
 	return nil
 }
 
-func deleteResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema.ResourceData, meta interface{}, c crudConfig[O, I]) diag.Diagnostics {
+func deleteResource[O updateDeleter[O, I], I any](_ context.Context, d *schema.ResourceData, _ interface{}, c crudConfig[O, I]) diag.Diagnostics {
 	retrievedEntity, err := c.getEntityFunc(d.Id())
 	if err != nil {
 		return diag.Errorf("error getting %s: %s", c.entityLabel, err)
@@ -117,12 +128,30 @@ func deleteResource[O updateDeleter[O, I], I any](ctx context.Context, d *schema
 
 	err = executeHooks(retrievedEntity, c.preDeleteHooks)
 	if err != nil {
-		return diag.Errorf("error executing %s hooks: %s", c.entityLabel, err)
+		return diag.Errorf("error executing pre-delete %s hooks: %s", c.entityLabel, err)
 	}
 
 	err = retrievedEntity.Delete()
 	if err != nil {
 		return diag.Errorf("error storing %s to state: %s", c.entityLabel, err)
+	}
+
+	return nil
+}
+
+func executeBefore(vcdClient *VCDClient, d *schema.ResourceData, runList []beforeCreateHook) error {
+	if len(runList) == 0 {
+		util.Logger.Printf("[DEBUG] No hooks to execute")
+		return nil
+	}
+
+	var err error
+	for i := range runList {
+		err = runList[i](vcdClient, d)
+		if err != nil {
+			return fmt.Errorf("error executing hook: %s", err)
+		}
+
 	}
 
 	return nil

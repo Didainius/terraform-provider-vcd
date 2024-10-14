@@ -10,9 +10,9 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
-func datasourceVcdTmVcenter() *schema.Resource {
+func datasourceVcdVcenter() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: datasourceVcdTmVcenterRead,
+		ReadContext: datasourceVcdVcenterRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -79,7 +79,7 @@ func datasourceVcdTmVcenter() *schema.Resource {
 	}
 }
 
-func datasourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func datasourceVcdVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
 		entityLabel:    labelVirtualCenter,

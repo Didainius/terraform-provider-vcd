@@ -9,6 +9,8 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
+// TODO: TM: validate compatibility with old data source
+
 func datasourceVcdTmNsxtManager() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: datasourceVcdTmNsxtManagerRead,
@@ -17,6 +19,11 @@ func datasourceVcdTmNsxtManager() *schema.Resource {
 			"name": {
 				Type:        schema.TypeString,
 				Required:    true,
+				Description: "Name of NSX-T Manager",
+			},
+			"href": {
+				Type:        schema.TypeString,
+				Computed:    true,
 				Description: "Name of NSX-T Manager",
 			},
 			"description": {

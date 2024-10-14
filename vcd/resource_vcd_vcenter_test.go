@@ -108,7 +108,7 @@ func TestAccVcdTmVcenter(t *testing.T) {
 				ImportState:             true,
 				ImportStateVerify:       true,
 				ImportStateId:           params["Testname"].(string),
-				ImportStateVerifyIgnore: []string{"password"},
+				ImportStateVerifyIgnore: []string{"password", "auto_trust_certificate"},
 			},
 			{
 				Config: configText4,
@@ -124,32 +124,35 @@ func TestAccVcdTmVcenter(t *testing.T) {
 
 const testAccVcdTmVcenterStep1 = `
 resource "vcd_tm_vcenter" "test" {
-  name       = "{{.Testname}}"
-  url        = "{{.VcenterUrl}}"
-  username   = "{{.VcenterUsername}}"
-  password   = "{{.VcenterPassword}}"
-  is_enabled = true
+  name                   = "{{.Testname}}"
+  url                    = "{{.VcenterUrl}}"
+  auto_trust_certificate = true
+  username               = "{{.VcenterUsername}}"
+  password               = "{{.VcenterPassword}}"
+  is_enabled             = true
 }
 `
 
 const testAccVcdTmVcenterStep2 = `
 resource "vcd_tm_vcenter" "test" {
-  name        = "{{.Testname}}-rename"
-  description = "description from Terraform"
-  url         = "{{.VcenterUrl}}"
-  username    = "{{.VcenterUsername}}"
-  password    = "{{.VcenterPassword}}"
-  is_enabled  = false
+  name                   = "{{.Testname}}-rename"
+  description            = "description from Terraform"
+  auto_trust_certificate = true
+  url                    = "{{.VcenterUrl}}"
+  username               = "{{.VcenterUsername}}"
+  password               = "{{.VcenterPassword}}"
+  is_enabled             = false
 }
 `
 
 const testAccVcdTmVcenterStep3 = `
 resource "vcd_tm_vcenter" "test" {
-  name       = "{{.Testname}}"
-  url        = "{{.VcenterUrl}}"
-  username   = "{{.VcenterUsername}}"
-  password   = "{{.VcenterPassword}}"
-  is_enabled = true
+  name                   = "{{.Testname}}"
+  url                    = "{{.VcenterUrl}}"
+  auto_trust_certificate = true
+  username               = "{{.VcenterUsername}}"
+  password               = "{{.VcenterPassword}}"
+  is_enabled             = true
 }
 `
 

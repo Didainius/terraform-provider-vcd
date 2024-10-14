@@ -64,7 +64,7 @@ var globalDataSourceMap = map[string]*schema.Resource{
 	"vcd_vapp_org_network":                             datasourceVcdVappOrgNetwork(),                          // 2.7
 	"vcd_vm_affinity_rule":                             datasourceVcdVmAffinityRule(),                          // 2.9
 	"vcd_vm_sizing_policy":                             datasourceVcdVmSizingPolicy(),                          // 3.0
-	"vcd_nsxt_manager":                                 datasourceVcdNsxtManager(),                             // 3.0
+	"vcd_nsxt_manager":                                 datasourceVcdTmNsxtManager(),                           // 3.0
 	"vcd_nsxt_tier0_router":                            datasourceVcdNsxtTier0Router(),                         // 3.0
 	"vcd_portgroup":                                    datasourceVcdPortgroup(),                               // 3.0
 	"vcd_vcenter":                                      datasourceVcdVcenter(),                                 // 3.0
@@ -181,8 +181,7 @@ var globalDataSourceMap = map[string]*schema.Resource{
 	"vcd_tm_region":          datasourceVcdTmRegion(),         // 4.0
 	"vcd_tm_supervisor":      datasourceVcdTmSupervisor(),     // 4.0
 	"vcd_tm_supervisor_zone": datasourceVcdTmSupervisorZone(), // 4.0
-	"vcd_tm_nsxt_manager":    datasourceVcdTmNsxtManager(),    // 4.0
-	"vcd_tm_vcenter":         datasourceVcdTmVcenter(),        // 4.0
+	// "vcd_nsxt_manager":       datasourceVcdTmNsxtManager(),    // 4.0
 }
 
 var globalResourceMap = map[string]*schema.Resource{
@@ -310,10 +309,10 @@ var globalResourceMap = map[string]*schema.Resource{
 	"vcd_nsxt_alb_virtual_service_http_resp_rules":     resourceVcdAlbVirtualServiceRespRules(),              // 3.14
 	"vcd_nsxt_alb_virtual_service_http_sec_rules":      resourceVcdAlbVirtualServiceSecRules(),               // 3.14
 
-	"vcd_tm_region":       resourceVcdTmRegion(),      // 4.0
-	"vcd_tm_org":          resourceVcdTmOrg(),         // 4.0
-	"vcd_tm_nsxt_manager": resourceVcdTmNsxtManager(), // 4.0
-	"vcd_tm_vcenter":      resourceVcdTmVcenter(),     // 4.0
+	"vcd_tm_region":    resourceVcdTmRegion(),      // 4.0
+	"vcd_tm_org":       resourceVcdTmOrg(),         // 4.0
+	"vcd_nsxt_manager": resourceVcdTmNsxtManager(), // 4.0
+	"vcd_vcenter":      resourceVcdVcenter(),       // 4.0
 }
 
 // Provider returns a terraform.ResourceProvider.

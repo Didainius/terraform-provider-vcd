@@ -3,23 +3,27 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
+	"github.com/vmware/go-vcloud-director/v2/util"
 )
 
 const labelVirtualCenter = "vCenter Server"
 
-func resourceVcdTmVcenter() *schema.Resource {
+func resourceVcdVcenter() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceVcdTmVcenterCreate,
-		ReadContext:   resourceVcdTmVcenterRead,
-		UpdateContext: resourceVcdTmVcenterUpdate,
-		DeleteContext: resourceVcdTmVcenterDelete,
+		CreateContext: resourceVcdVcenterCreate,
+		ReadContext:   resourceVcdVcenterRead,
+		UpdateContext: resourceVcdVcenterUpdate,
+		DeleteContext: resourceVcdVcenterDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: resourceVcdTmVcenterImport,
+			StateContext: resourceVcdVcenterImport,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -32,6 +36,11 @@ func resourceVcdTmVcenter() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: fmt.Sprintf("URL including port of %s", labelVirtualCenter),
+			},
+			"auto_trust_certificate": {
+				Type:        schema.TypeBool,
+				Required:    true,
+				Description: fmt.Sprintf("Defines if the %s certificate should automatically be trusted", labelVirtualCenter),
 			},
 			"username": {
 				Type:        schema.TypeString,
@@ -132,31 +141,34 @@ func setTmVcenterData(d *schema.ResourceData, v *govcd.VCenter) error {
 	return nil
 }
 
-func resourceVcdTmVcenterCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceVcdVcenterCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
+
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
-		entityLabel:    labelVirtualCenter,
-		getTypeFunc:    getTmVcenterType,
-		stateStoreFunc: setTmVcenterData,
-		createFunc:     vcdClient.CreateVcenter,
-		readFunc:       resourceVcdTmVcenterRead,
+		entityLabel:      labelVirtualCenter,
+		getTypeFunc:      getTmVcenterType,
+		stateStoreFunc:   setTmVcenterData,
+		createFunc:       vcdClient.CreateVcenter,
+		resourceReadFunc: resourceVcdVcenterRead,
+		// certificate should be trusted for the vCenter to work
+		preCreateHooks: []beforeCreateHook{trustHostCertificate("url", "auto_trust_certificate")},
 	}
 	return createResource(ctx, d, meta, c)
 }
 
-func resourceVcdTmVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceVcdVcenterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
-		entityLabel:   labelVirtualCenter,
-		getTypeFunc:   getTmVcenterType,
-		getEntityFunc: vcdClient.GetVCenterById,
-		readFunc:      resourceVcdTmVcenterRead,
+		entityLabel:      labelVirtualCenter,
+		getTypeFunc:      getTmVcenterType,
+		getEntityFunc:    vcdClient.GetVCenterById,
+		resourceReadFunc: resourceVcdVcenterRead,
 	}
 
 	return updateResource(ctx, d, meta, c)
 }
 
-func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceVcdVcenterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
 		entityLabel:    labelVirtualCenter,
@@ -166,27 +178,19 @@ func resourceVcdTmVcenterRead(ctx context.Context, d *schema.ResourceData, meta 
 	return readResource(ctx, d, meta, c)
 }
 
-func resourceVcdTmVcenterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceVcdVcenterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	vcdClient := meta.(*VCDClient)
-
-	// vCenter needs to be disabled before removal
-	disableBeforeDelete := func(v *govcd.VCenter) error {
-		if v.VSphereVCenter.IsEnabled {
-			return v.Disable()
-		}
-		return nil
-	}
 
 	c := crudConfig[*govcd.VCenter, types.VSphereVirtualCenter]{
 		entityLabel:    labelVirtualCenter,
 		getEntityFunc:  vcdClient.GetVCenterById,
-		preDeleteHooks: []resourceHook[*govcd.VCenter]{disableBeforeDelete},
+		preDeleteHooks: []resourceHook[*govcd.VCenter]{disableVcenter}, // vCenter must be disabled before deletion
 	}
 
 	return deleteResource(ctx, d, meta, c)
 }
 
-func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+func resourceVcdVcenterImport(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	vcdClient := meta.(*VCDClient)
 
 	v, err := vcdClient.GetVCenterByName(d.Id())
@@ -196,4 +200,78 @@ func resourceVcdTmVcenterImport(ctx context.Context, d *schema.ResourceData, met
 
 	d.SetId(v.VSphereVCenter.VcId)
 	return []*schema.ResourceData{d}, nil
+}
+
+// disableVcenter disables vCenter which is usefull before deletion as a non-disabled vCenter cannot
+// be removed
+func disableVcenter(v *govcd.VCenter) error {
+	if v.VSphereVCenter.IsEnabled {
+		return v.Disable()
+	}
+	return nil
+}
+
+// trustHostCertificate can automatically add host certificate to trusted ones
+// * urlSchemaFieldName - Terraform schema field (TypeString) name that contains URL of entity
+// * trustSchemaFieldName - Terraform schema field (TypeBool) name that defines if the certificate should be trusted
+// Note. It will not add new entry if the certificate is already trusted
+func trustHostCertificate(urlSchemaFieldName, trustSchemaFieldName string) beforeCreateHook {
+	return func(vcdClient *VCDClient, d *schema.ResourceData) error {
+		shouldExecute := d.Get(trustSchemaFieldName).(bool)
+		if !shouldExecute {
+			util.Logger.Printf("[DEBUG] Skipping certificate trust execution as '%s' is false", trustSchemaFieldName)
+			return nil
+		}
+
+		parsedUrl, err := url.Parse(d.Get(urlSchemaFieldName).(string))
+		if err != nil {
+			return fmt.Errorf("error parsing provided url '%s': %s", d.Get(urlSchemaFieldName).(string), err)
+		}
+
+		port, err := strconv.Atoi(parsedUrl.Port())
+		if err != nil {
+			return fmt.Errorf("error converting '%s' to int: %s", parsedUrl.Port(), err)
+		}
+		con := types.TestConnection{
+			Host:                          parsedUrl.Hostname(),
+			Port:                          port,
+			Secure:                        addrOf(true),
+			Timeout:                       10, // UI timeout value
+			HostnameVerificationAlgorithm: "HTTPS",
+		}
+		res, err := vcdClient.Client.TestConnection(con)
+		if err != nil {
+			return fmt.Errorf("error testing connection: %s", err)
+		}
+
+		// Check if certificate is not trusted yet
+		if res != nil && res.TargetProbe != nil && res.TargetProbe.SSLResult != "SUCCESS" {
+
+			if res.TargetProbe.SSLResult == "ERROR_UNTRUSTED_CERTIFICATE" {
+				// Need to trust certificate
+				cert := res.TargetProbe.CertificateChain
+				if cert == "" {
+					return fmt.Errorf("error - certificate chain is empty. Connection result: '%s', SSL result: '%s'", res.TargetProbe.ConnectionResult, res.TargetProbe.SSLResult)
+				}
+
+				///
+				trust := &types.TrustedCertificate{
+					Alias:       fmt.Sprintf("%s_%s", parsedUrl.Hostname(), time.Now().UTC().Format(time.RFC3339)),
+					Certificate: cert,
+				}
+				trusted, err := vcdClient.VCDClient.CreateTrustedCertificate(trust)
+				if err != nil {
+					return fmt.Errorf("error trusting Certificate: %s", err)
+				}
+
+				util.Logger.Printf("[DEBUG] Certificate trust established ID - %s, Alias - %s",
+					trusted.TrustedCertificate.ID, trusted.TrustedCertificate.Alias)
+
+			} else {
+				return fmt.Errorf("SSL verification result - %s", res.TargetProbe.SSLResult)
+			}
+
+		}
+		return nil
+	}
 }
